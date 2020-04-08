@@ -5,7 +5,7 @@ Created on 31.01.20
 :author:     Martin Dočekal
 """
 import unittest
-from keywordsextractor.utils.generic import subSeq
+from windutils.generic import subSeq
 
 
 class TestSubSeq(unittest.TestCase):
