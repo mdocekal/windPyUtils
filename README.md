@@ -1,2 +1,2 @@
-# windUtils
+# windPyUtils
 Utils for python projects.
