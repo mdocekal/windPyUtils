@@ -10,7 +10,7 @@ with open('README.md') as readme_file:
     README = readme_file.read()
 
 setup_args = dict(
-    name='windUtils',
+    name='windPyUtils',
     version='1.0.0',
     description='Useful tools for Python projects.',
     long_description_content_type="text/markdown",
