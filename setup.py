@@ -19,7 +19,7 @@ setup_args = dict(
     packages=find_packages(),
     author='Martin Dočekal',
     keywords=['utils', 'general usage'],
-    url='https://github.com/windionleaf/windUtils',
+    url='https://github.com/windionleaf/windPyUtils',
     install_requires=[
     ]
 )
