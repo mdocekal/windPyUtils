@@ -5,7 +5,27 @@ This module contains generic utils
 
 :author:     Martin Dočekal
 """
-from typing import Sequence, Iterable
+from typing import Sequence
+
+
+def getAllSubclasses(cls):
+    """
+    Searches all subclasses of given class.
+
+    :param cls: The base class.
+    :type cls: class
+    """
+
+    stack = [cls]
+    sub = []
+    while len(stack):
+        base = stack.pop()
+        for child in base.__subclasses__():
+            if child not in sub:
+                sub.append(child)
+                stack.append(child)
+
+    return sub
 
 
 def subSeq(s1: Sequence, s2: Sequence) -> bool:
