@@ -9,7 +9,7 @@ Circular buffer tests.
 
 import unittest
 
-from windutils.structures.circular_buffer import CircularBuffer
+from windpyutils.structures.circular_buffer import CircularBuffer
 
 
 class TestEntity(unittest.TestCase):

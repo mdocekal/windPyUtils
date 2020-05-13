@@ -7,7 +7,7 @@ Unit tests for metrics module.
 """
 import unittest
 
-from windutils.metrics import meanSquaredError, rootMeanSquaredError
+from windpyutils.metrics import meanSquaredError, rootMeanSquaredError
 
 
 class TestMeanSquaredError(unittest.TestCase):

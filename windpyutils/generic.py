@@ -5,7 +5,7 @@ This module contains generic utils
 
 :author:     Martin Dočekal
 """
-from typing import Sequence
+from typing import Sequence, Iterable
 
 
 def subSeq(s1: Sequence, s2: Sequence) -> bool:
@@ -25,3 +25,32 @@ def subSeq(s1: Sequence, s2: Sequence) -> bool:
         return True
 
     return False
+
+
+class RoundSequence(object):
+    """
+    Wrapper for an Sequence that should iterate infinitely in cyclic fashion.
+    """
+
+    def __init__(self, i: Sequence):
+        """
+        Initialization of wrapper.
+
+        :param i: Sequence you want to wrap.
+        :type i: Sequence
+        """
+
+        self.s = i
+        self.i = iter(self.s)
+
+    def __iter__(self):
+        return self.i
+
+    def __next__(self, *args, **kwargs):
+        try:
+            x = next(self.i)
+        except StopIteration:
+            self.i = iter(self.s)
+            x = next(self.i)
+
+        return x
