@@ -5,13 +5,35 @@ This module contains structures that are useful for mocking.
 
 :author:     Martin Dočekal
 """
+from abc import ABC, abstractmethod
 from itertools import count
-from typing import Collection, Sequence, Optional, Union
+from typing import Collection, Sequence, Optional, Union, Iterator
 
 from windpyutils.generic import RoundSequence
 
 
-class MockedRand(object):
+class BasicMockedRand(ABC):
+    """
+    Basic abstract class for mock rands.
+    Every class must have gen parameter returning iterator that on next call return next value.
+    """
+
+    def __call__(self, *args, **kwargs):
+        return next(self.gen)
+
+    @property
+    @abstractmethod
+    def gen(self) -> Iterator:
+        pass
+
+    def sample(self):
+        """
+        Same as a simple call.
+        """
+        return self()
+
+
+class MockedRand(BasicMockedRand):
     """
     Mock that has deterministic rand like behaviour.
 
@@ -52,11 +74,12 @@ class MockedRand(object):
         else:
             self._gen = RoundSequence(use)
 
-    def __call__(self, *args, **kwargs):
-        return next(self._gen)
+    @property
+    def gen(self):
+        return self._gen
 
 
-class MockedRandInt(object):
+class MockedRandInt(BasicMockedRand):
     """
     Mock that has deterministic randint like behaviour.
 
@@ -83,6 +106,6 @@ class MockedRandInt(object):
         else:
             self._gen = RoundSequence(use)
 
-    def __call__(self, *args, **kwargs):
-        return next(self._gen)
-
+    @property
+    def gen(self):
+        return self._gen
