@@ -5,7 +5,7 @@ This module contains generic utils
 
 :author:     Martin Dočekal
 """
-from typing import Sequence
+from typing import Sequence, List, Tuple
 
 
 def getAllSubclasses(cls):
@@ -45,6 +45,35 @@ def subSeq(s1: Sequence, s2: Sequence) -> bool:
         return True
 
     return False
+
+
+def searchSubSeq(s1: Sequence, s2: Sequence) -> List[Tuple[int, int]]:
+    """
+    Searches all occurrences of sequence s1 in s2,
+
+    :param s1: First sequence.
+    :type s1: Sequence
+    :param s2: Second sequence.
+    :type s2: Sequence
+    :return: List of searched spans. Span is a tuple [start, end).
+        Empty list maybe return in case when there are no spans found.
+    :rtype: List[Tuple[int, int]]
+    :raise ValueError: When one of input sequences haves zero len.
+    """
+
+    if len(s1) == 0 or len(s2) == 0:
+        raise ValueError("Both sequences must have non zero length.")
+
+    if len(s1) <= len(s2):
+        res = []
+        for offset in range(0, len(s2) - len(s1) + 1):
+            endOffset = offset + len(s1)
+            if s1 == s2[offset:endOffset]:
+                res.append((offset, endOffset))
+
+        return res
+
+    return []
 
 
 class RoundSequence(object):
