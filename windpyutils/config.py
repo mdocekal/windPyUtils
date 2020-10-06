@@ -7,6 +7,7 @@ Module containing class that stores configuration.
 :author:     Martin Dočekal
 """
 import ast
+import os
 from typing import Dict
 
 
@@ -28,7 +29,7 @@ class Config(dict):
         :raise SyntaxError: Invalid input.
         :raise ValueError: Invalid value for a parameter or missing parameter.
         """
-
+        self._pathTo = pathTo
         with open(pathTo, "r") as f:
             config = ast.literal_eval(f.read())
 
@@ -38,6 +39,22 @@ class Config(dict):
             self.validate(config)
 
             super().__init__(config)
+
+    def translateFilePath(self, path: str) -> str:
+        """
+        Translates relative path to the absolute path.
+        If the path is already absolute than it returns the original.
+        All relative paths are set relatively to this config file.
+
+        :param path: Path for translating.
+        :type path: str
+        :return: translated path
+        :rtype: str
+        """
+        if not os.path.isabs(path):
+            path = os.path.join(os.path.dirname(self._pathTo), path)
+
+        return path
 
     def validate(self, config: Dict):
         """
