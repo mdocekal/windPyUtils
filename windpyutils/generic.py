@@ -5,7 +5,7 @@ This module contains generic utils
 
 :author:     Martin Dočekal
 """
-from typing import Sequence, List, Tuple
+from typing import Sequence, List, Tuple, Iterable
 
 
 def getAllSubclasses(cls):
@@ -103,3 +103,32 @@ class RoundSequence(object):
             x = next(self.i)
 
         return x
+
+
+def comparePosInIterables(a: Iterable, b: Iterable) -> bool:
+    """
+    Positionally invariant compare of two iterables.
+
+    Example of two same iterables:
+        [1,2,3]
+        [3,2,1]
+
+    Example of two different iterables:
+        [1,2,3]
+        [1,4,3]
+
+    :param a: First iterable for comparison.
+    :type a: Iterable
+    :param b: Second iterable for comparison.
+    :type b: Iterable
+    :return: True considered the same. False otherwise.
+    :rtype: bool
+    """
+
+    b = list(b)
+    try:
+        for x in a:
+            b.remove(x)
+    except ValueError:
+        return False
+    return len(b) == 0

@@ -4,8 +4,9 @@ Created on 31.01.20
 
 :author:     Martin Dočekal
 """
+import itertools
 import unittest
-from windpyutils.generic import subSeq, RoundSequence, searchSubSeq
+from windpyutils.generic import subSeq, RoundSequence, searchSubSeq, comparePosInIterables
 
 
 class TestSubSeq(unittest.TestCase):
@@ -68,6 +69,20 @@ class TestSearchSubSeq(unittest.TestCase):
         self.assertListEqual(searchSubSeq([3, 4], [1, 2, 3]), [])
         self.assertListEqual(searchSubSeq(["Machine", "learning"], ["on", "Machine", "learning", "in", "history"]), [(1, 3)])
         self.assertListEqual(searchSubSeq(["artificial", "learning"], ["on", "Machine", "learning", "in", "history"]), [])
+
+
+class TestComparePosInIterables(unittest.TestCase):
+
+    def test_same(self):
+        self.assertTrue(comparePosInIterables([], []))
+
+        for perm in itertools.permutations([1, 2, 3]):
+            self.assertTrue(comparePosInIterables(perm, [1, 2, 3]))
+            self.assertTrue(comparePosInIterables([1, 2, 3], perm))
+
+    def test_different(self):
+        self.assertFalse(comparePosInIterables([1, 2, 3], [4, 5]))
+        self.assertFalse(comparePosInIterables([1, 2, 3], [1, 4, 3]))
 
 
 if __name__ == '__main__':
