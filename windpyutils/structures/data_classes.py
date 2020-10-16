@@ -7,13 +7,13 @@ Module containing attribute drive dictionary.
 """
 import copy
 from collections import ValuesView
+from keyword import iskeyword
 from typing import Any, KeysView, List, Tuple, ItemsView
 
 
 class AttributeDrivenDictionary(dict):
     """
-    Base class for all classes that want's to act like a dictionary, but with predefined keys that can not be
-    changed (values can) and can be accessed like instance variable.
+    Base class for all classes that want's to act like a dictionary, but it allows to  access keys like instance variable.
 
     WARNING: interface may not be compatible with standard dict interface in all cases
 
@@ -28,73 +28,23 @@ class AttributeDrivenDictionary(dict):
         m["a"]  # hello
     """
 
+    def __getattr__(self, key):
+        try:
+            return self[key]
+        except KeyError:
+            raise AttributeError(key)
+
+    def __setattr__(self, key, value):
+        super().__setitem__(key, value)
+
     def __setitem__(self, key, value):
-        if key not in self.__dict__.keys():
+        if not isinstance(key, str) or not key.isidentifier() or iskeyword(key) or key == "None":
+            # key is in invalid form
             raise KeyError(key)
 
-        setattr(self, key, value)
+        super().__setitem__(key, value)
 
-    def __getitem__(self, key) -> Any:
-        if key not in self.__dict__.keys():
-            raise KeyError(key)
-
-        return getattr(self, key)
-
-    def __len__(self) -> int:
-        return len(self.__dict__.keys())
-
-    def __delitem__(self, key):
-        raise RuntimeError(f"You can not use del on {self.__class__}.")
-
-    def clear(self):
-        raise RuntimeError(f"You can not use clear on {self.__class__}.")
-
-    def copy(self) -> "AttributeDrivenDictionary":
-        return copy.copy(self)
-
-    def has_key(self, k) -> bool:
-        return k in self.__dict__.keys()
-
-    def update(self, *args, **kwargs):
-
-        for a in args:
-            if isinstance(a, dict):
-                a = a.items()
-            for k, v in a:
-                if k in self:
-                    setattr(self, k, v)
-
-        for k, v in kwargs.items():
-            if k in self:
-                setattr(self, k, v)
-
-    def keys(self) -> KeysView:
-        return self.__dict__.keys()
-
-    def values(self) -> ValuesView:
-        return self.__dict__.values()
-
-    def items(self) -> ItemsView:
-        return self.__dict__.items()
-
-    def pop(self, *args):
-        raise RuntimeError(f"You can not use pop on {self.__class__}.")
-
-    def __eq__(self, dict_) -> bool:
-        if isinstance(dict_, AttributeDrivenDictionary):
-            dict_ = dict_.__dict__
-
-        return self.__dict__ == dict_
-
-    def __contains__(self, item) -> bool:
-        return item in self.__dict__
-
-    def __iter__(self):
-        for key in self.__dict__.keys():
-            yield key
-
-    def __repr__(self):
-        return repr(self.__dict__)
-
-    def __str__(self):
-        return str(self.__dict__)
+    @property
+    def __dict__(self):
+        # this is dict so it is mapping object to itself all of it's writable attributes
+        return self
