@@ -9,7 +9,7 @@ import math
 from typing import Iterable
 
 
-def meanSquaredError(results: Iterable[float], targets: Iterable[float]) -> float:
+def mean_squared_error(results: Iterable[float], targets: Iterable[float]) -> float:
     """
     Calculates mean squered error
 
@@ -21,17 +21,17 @@ def meanSquaredError(results: Iterable[float], targets: Iterable[float]) -> floa
     :rtype: float
     """
 
-    sumVal = 0
+    sum_val = 0
     cnt = 0
 
     for r, t in zip(results, targets):
-        sumVal += (r-t)**2
+        sum_val += (r-t)**2
         cnt += 1
 
-    return sumVal/cnt
+    return sum_val/cnt
 
 
-def rootMeanSquaredError(results: Iterable[float], targets: Iterable[float]) -> float:
+def root_mean_squared_error(results: Iterable[float], targets: Iterable[float]) -> float:
     """
     Calculates root mean squered error
 
@@ -43,4 +43,4 @@ def rootMeanSquaredError(results: Iterable[float], targets: Iterable[float]) -> 
     :rtype: float
     """
 
-    return math.sqrt(meanSquaredError(results, targets))
+    return math.sqrt(mean_squared_error(results, targets))

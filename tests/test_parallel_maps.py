@@ -7,7 +7,7 @@ Created on 23.09.20
 import os
 import unittest
 
-from windpyutils.parallel.maps import mulPMap
+from windpyutils.parallel.maps import mul_p_map
 
 
 class TestMulPMap(unittest.TestCase):
@@ -15,7 +15,7 @@ class TestMulPMap(unittest.TestCase):
         if os.cpu_count() > 1:
             workers = 2
             data = [i for i in range(1000)]
-            results = mulPMap(lambda x: x*2, data, workers)
+            results = mul_p_map(lambda x: x * 2, data, workers)
 
             self.assertListEqual(results, [i*2 for i in data])
         else:
@@ -24,7 +24,7 @@ class TestMulPMap(unittest.TestCase):
     def test_mul_pmap_all_cpus(self):
         if os.cpu_count() > 1:
             data = [i for i in range(1000)]
-            results = mulPMap(lambda x: x * 2, data, -1)
+            results = mul_p_map(lambda x: x * 2, data, -1)
 
             self.assertListEqual(results, [i * 2 for i in data])
         else:

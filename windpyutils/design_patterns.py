@@ -19,7 +19,7 @@ class Singleton(type):
     def __call__(cls, *args, **kwargs):
         try:
             return cls._clsInstances[cls]
-        except:
+        except KeyError:
             cls._clsInstances[cls] = super().__call__(*args, **kwargs)
             return cls._clsInstances[cls]
 
@@ -47,21 +47,21 @@ class Observable(object):
     """
 
     @staticmethod
-    def _event(tag, passArguments=False):
+    def _event(tag, pass_arguments=False):
         """
         Use this decorator to mark methods that could be observed.
         """
 
         def tags_decorator(f):
             @wraps(f)
-            def funcWrapper(o, *arg, **karg):
+            def func_wrapper(o, *arg, **karg):
                 f(o, *arg, **karg)
-                if passArguments:
+                if pass_arguments:
                     o._Observable__notify(tag, *arg, **karg)
                 else:
                     o._Observable__notify(tag)
 
-            return funcWrapper
+            return func_wrapper
 
         return tags_decorator
 
@@ -87,49 +87,49 @@ class Observable(object):
 
         self.__observers = observers
 
-    def clearObservers(self):
+    def clear_observers(self):
         """
         Clears all observers.
         """
         self.__observers = {}
 
-    def registerObserver(self, eventTag, observer):
+    def register_observer(self, event_tag, observer):
         """
         Register new observer for observable method (_event).
 
-        :param eventTag: The tag that is passed as parameter for _event decorator.
-        :type eventTag: str
+        :param event_tag: The tag that is passed as parameter for _event decorator.
+        :type event_tag: str
         :param observer: Method that should be called
         :type observer: Callable
         """
 
-        s = self.__observers.setdefault(eventTag, set())
+        s = self.__observers.setdefault(event_tag, set())
         s.add(observer)
 
-    def unregisterObserver(self, eventTag, observer):
+    def unregister_observer(self, event_tag, observer):
         """
         Unregister observer for observable method (_event).
 
-        :param eventTag: The tag that is passed as parameter for _event decorator.
-        :type eventTag: str
+        :param event_tag: The tag that is passed as parameter for _event decorator.
+        :type event_tag: str
         :param observer: Method that should no longer be called
         :type observer: Callable
         """
 
         try:
-            self.__observers[eventTag].remove(observer)
+            self.__observers[event_tag].remove(observer)
         except KeyError:
             pass
 
-    def __notify(self, eventTag, *arg, **kw):
+    def __notify(self, event_tag, *arg, **kw):
         """
         Notify all obervers for given method.
 
-        :param eventTag: The tag that is passed as parameter for _event decorator.
-        :type eventTag: str
+        :param event_tag: The tag that is passed as parameter for _event decorator.
+        :type event_tag: str
         """
         try:
-            for o in self.__observers[eventTag]:
+            for o in self.__observers[event_tag]:
                 o(*arg, **kw)
         except KeyError:
             pass

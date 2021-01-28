@@ -5,10 +5,7 @@ Module containing attribute drive dictionary.
 
 :author:     Martin Dočekal
 """
-import copy
-from collections import ValuesView
 from keyword import iskeyword
-from typing import Any, KeysView, List, Tuple, ItemsView
 
 
 class AttributeDrivenDictionary(dict):

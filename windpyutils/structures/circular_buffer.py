@@ -13,19 +13,19 @@ class CircularBuffer(Sequence):
     Implementation of circular buffer.
     """
 
-    def __init__(self, maxSize: int):
+    def __init__(self, max_size: int):
         """
         Implementation of circular butter.
 
-        :param maxSize: The max size of circular buffer.
+        :param max_size: The max size of circular buffer.
             Must be grater than 0.
-        :type maxSize: int
+        :type max_size: int
         :raise AssertionError: When you provide invalid max size.
         """
 
-        assert maxSize > 0
+        assert max_size > 0
 
-        self._buffer = [None]*maxSize
+        self._buffer = [None] * max_size
         self._size = 0
         self._offset = 0  # Offset for next element that will be added.
 
@@ -55,10 +55,10 @@ class CircularBuffer(Sequence):
         if offset >= len(self) or 0 > offset:
             raise IndexError("The offset {} is out of buffer.".format(offset))
 
-        return self._buffer[(self._offset-self._size+offset) % self.maxSize]
+        return self._buffer[(self._offset-self._size+offset) % self.max_size]
 
     @property
-    def maxSize(self) -> int:
+    def max_size(self) -> int:
         """
         Maximum buffer size
         """
@@ -76,9 +76,9 @@ class CircularBuffer(Sequence):
         """
 
         self._buffer[self._offset] = e
-        self._offset = (self._offset + 1) % self.maxSize
+        self._offset = (self._offset + 1) % self.max_size
 
-        if self._size < self.maxSize:
+        if self._size < self.max_size:
             self._size += 1
 
     def clear(self):

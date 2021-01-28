@@ -11,7 +11,7 @@ with open('README.md') as readme_file:
 
 setup_args = dict(
     name='windPyUtils',
-    version='1.0.6',
+    version='1.1.0',
     description='Useful tools for Python projects.',
     long_description_content_type="text/markdown",
     long_description=README,
@@ -19,9 +19,8 @@ setup_args = dict(
     packages=find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),
     author='Martin Dočekal',
     keywords=['utils', 'general usage'],
-    url='https://github.com/windionleaf/windPyUtils',
-    install_requires=[
-    ]
+    url='https://github.com/mdocekal/windPyUtils',
+    install_requires=[]
 )
 
 if __name__ == '__main__':

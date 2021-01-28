@@ -119,98 +119,98 @@ class TestSpanSet(unittest.TestCase):
         self.startsDuplicate = [1, 2, 3, 2, 5, 1]
         self.endsDuplicate = [1, 2, 3, 2, 5, 3]
 
-        self.A = SpanSet([1, 2, 3, 4, 5], [3, 4, 5, 6, 7], forceNoDupCheck=True)
+        self.A = SpanSet([1, 2, 3, 4, 5], [3, 4, 5, 6, 7], force_no_dup_check=True)
         self.APartOf = self.A.copy()
-        self.APartOf.eqRelation = SpanSetPartOfEqRelation()
+        self.APartOf.eq_relation = SpanSetPartOfEqRelation()
         self.AIncludes = self.A.copy()
-        self.AIncludes.eqRelation = SpanSetIncludesEqRelation()
+        self.AIncludes.eq_relation = SpanSetIncludesEqRelation()
         self.AOverlaps = self.A.copy()
-        self.AOverlaps.eqRelation = SpanSetOverlapsEqRelation()
+        self.AOverlaps.eq_relation = SpanSetOverlapsEqRelation()
 
-        self.B = SpanSet([11, 3, 4, 5], [13, 5, 6, 8], forceNoDupCheck=True)
+        self.B = SpanSet([11, 3, 4, 5], [13, 5, 6, 8], force_no_dup_check=True)
         self.BPartOf = self.B.copy()
-        self.BPartOf.eqRelation = SpanSetPartOfEqRelation()
+        self.BPartOf.eq_relation = SpanSetPartOfEqRelation()
         self.BIncludes = self.B.copy()
-        self.BIncludes.eqRelation = SpanSetIncludesEqRelation()
+        self.BIncludes.eq_relation = SpanSetIncludesEqRelation()
         self.BOverlaps = self.B.copy()
-        self.BOverlaps.eqRelation = SpanSetOverlapsEqRelation()
+        self.BOverlaps.eq_relation = SpanSetOverlapsEqRelation()
 
         # A ∪ B
         self.AUB = SpanSet([1, 2, 3, 4, 5, 11, 5], [3, 4, 5, 6, 7, 13, 8],
-                           forceNoDupCheck=True)
+                           force_no_dup_check=True)
         # A ∩ B
         self.AIB = SpanSet([3, 4], [5, 6],
-                           forceNoDupCheck=True)
+                           force_no_dup_check=True)
         self.AIBPartOf = SpanSet([3, 4, 5], [5, 6, 7],
-                                 forceNoDupCheck=True)
+                                 force_no_dup_check=True)
         self.AIBOverlaps = SpanSet([1, 2, 3, 4, 5], [3, 4, 5, 6, 7],
-                                   forceNoDupCheck=True)
+                                   force_no_dup_check=True)
 
         # A - B
-        self.ADifB = SpanSet([1, 2, 5], [3, 4, 7], forceNoDupCheck=True)
-        self.ADifBPartOf = SpanSet([1, 2], [3, 4], forceNoDupCheck=True)
-        self.ADifBOverlaps = SpanSet([], [], forceNoDupCheck=True)
+        self.ADifB = SpanSet([1, 2, 5], [3, 4, 7], force_no_dup_check=True)
+        self.ADifBPartOf = SpanSet([1, 2], [3, 4], force_no_dup_check=True)
+        self.ADifBOverlaps = SpanSet([], [], force_no_dup_check=True)
 
         # A ⊕ B (symmetric difference)
-        self.ADifSymB = SpanSet([1, 2, 5, 11, 5], [3, 4, 7, 13, 8], forceNoDupCheck=True)
-        self.ADifSymBPartOf = SpanSet([1, 2, 11, 5], [3, 4, 13, 8], forceNoDupCheck=True)
-        self.ADifSymBOverlaps = SpanSet([11, 5], [13, 8], forceNoDupCheck=True)
+        self.ADifSymB = SpanSet([1, 2, 5, 11, 5], [3, 4, 7, 13, 8], force_no_dup_check=True)
+        self.ADifSymBPartOf = SpanSet([1, 2, 11, 5], [3, 4, 13, 8], force_no_dup_check=True)
+        self.ADifSymBOverlaps = SpanSet([11, 5], [13, 8], force_no_dup_check=True)
 
         # A subset
-        self.ASubset = SpanSet([2, 3], [4, 5], forceNoDupCheck=True)
-        self.APartOfSubset = SpanSet([2, 3, 6], [4, 5, 6], forceNoDupCheck=True)
-        self.AIncludesSubset = SpanSet([2, 3, 4], [4, 5, 8], forceNoDupCheck=True)
-        self.AOverlapsSubset = SpanSet([2, 3, 7], [4, 5, 9], forceNoDupCheck=True)
+        self.ASubset = SpanSet([2, 3], [4, 5], force_no_dup_check=True)
+        self.APartOfSubset = SpanSet([2, 3, 6], [4, 5, 6], force_no_dup_check=True)
+        self.AIncludesSubset = SpanSet([2, 3, 4], [4, 5, 8], force_no_dup_check=True)
+        self.AOverlapsSubset = SpanSet([2, 3, 7], [4, 5, 9], force_no_dup_check=True)
 
         # A superset
-        self.ASup = SpanSet([1, 2, 3, 4, 5, 6], [3, 4, 5, 6, 7, 9], forceNoDupCheck=True)
+        self.ASup = SpanSet([1, 2, 3, 4, 5, 6], [3, 4, 5, 6, 7, 9], force_no_dup_check=True)
         self.AOverlapsSup = SpanSet([1, 2, 3, 4, 5, 20], [3, 4, 5, 6, 7, 21],
-                                    forceNoDupCheck=True)
+                                    force_no_dup_check=True)
 
-        self.AEq = SpanSet([1, 2, 3, 4, 5], [3, 4, 5, 6, 7], forceNoDupCheck=True)
+        self.AEq = SpanSet([1, 2, 3, 4, 5], [3, 4, 5, 6, 7], force_no_dup_check=True)
         self.APartOfEq = SpanSet([1, 2, 3, 4, 5, 6], [3, 4, 5, 6, 7, 6],
-                                 forceNoDupCheck=True)
+                                 force_no_dup_check=True)
         self.AIncludesEq = SpanSet([1, 2, 3, 4, 5, 5], [3, 4, 5, 6, 7, 9],
-                                   forceNoDupCheck=True)
+                                   force_no_dup_check=True)
         self.AOverlapsEq = SpanSet([1, 2, 3, 4, 5, 7], [3, 4, 5, 6, 7, 10],
-                                   forceNoDupCheck=True)
+                                   force_no_dup_check=True)
 
-        self.empty = SpanSet([], [], forceNoDupCheck=True)
+        self.empty = SpanSet([], [], force_no_dup_check=True)
 
     def test_non_duplicate_initialization(self):
         """
         Tests set that is initialized with no duplicates.
         """
 
-        sSet = SpanSet(self.starts, self.ends)
+        s_set = SpanSet(self.starts, self.ends)
 
-        self._checkInit(sSet, self.starts, self.ends)
+        self._checkInit(s_set, self.starts, self.ends)
 
     def test_non_duplicate_force_no_check_initialization(self):
         """
         Tests set that is initialized with no duplicates and no check is forced.
         """
 
-        sSet = SpanSet(self.starts, self.ends, forceNoDupCheck=True)
-        self._checkInit(sSet, self.starts, self.ends)
+        s_set = SpanSet(self.starts, self.ends, force_no_dup_check=True)
+        self._checkInit(s_set, self.starts, self.ends)
 
     def test_duplicate_initialization(self):
         """
         Tests set that is initialized with duplicates.
         """
-        sSet = SpanSet(self.startsDuplicate, self.endsDuplicate)
+        s_set = SpanSet(self.startsDuplicate, self.endsDuplicate)
 
-        self._checkInit(sSet, self.startsDuplicate, self.endsDuplicate, duplicates=1)  # there is one duplicate in input
+        self._checkInit(s_set, self.startsDuplicate, self.endsDuplicate, duplicates=1)  # there is one duplicate in input
 
     def test_duplicate_force_no_check_initialization(self):
         """
         Tests set that is initialized with duplicates and no check is forced.
         """
-        sSet = SpanSet(self.startsDuplicate, self.endsDuplicate, forceNoDupCheck=True)
+        s_set = SpanSet(self.startsDuplicate, self.endsDuplicate, force_no_dup_check=True)
         # these set should be wrongly initialized because there are duplicates in the input and we do not perform the
         # check. This test tests that the check was not done (At least, that it has no effect.).
 
-        self.assertEqual(len(sSet), len(self.startsDuplicate))
+        self.assertEqual(len(s_set), len(self.startsDuplicate))
 
     def test_eq(self):
         self.assertEqual(self.A, self.AEq)
@@ -360,12 +360,12 @@ class TestSpanSet(unittest.TestCase):
         self.assertEqual(self.AOverlapsEq ^ self.AOverlapsEq, self.empty)
         self.assertEqual(self.A ^ self.BOverlaps, self.ADifSymBOverlaps)
 
-    def _checkInit(self, sSet: SpanSet, starts: Sequence, ends: Sequence, duplicates: int = 0):
+    def _checkInit(self, s_set: SpanSet, starts: Sequence, ends: Sequence, duplicates: int = 0):
         """
         Check initialization of SpanSet that was initialized with given tensors.
 
-        :param sSet: Set you want to check.
-        :type sSet: SpanSet
+        :param s_set: Set you want to check.
+        :type s_set: SpanSet
         :param starts: Starts used for initialization of the set.
         :type starts: Sequence
         :param ends: Ends used for initialization of the set.
@@ -379,18 +379,18 @@ class TestSpanSet(unittest.TestCase):
         :type duplicates: int
         """
 
-        self.assertEqual(len(sSet), len(starts) - duplicates)
+        self.assertEqual(len(s_set), len(starts) - duplicates)
 
-        for span in sSet:
-            isIn = False
+        for span in s_set:
+            is_in = False
             for s, e in zip(starts, ends):
                 if s == span[0] and e == span[1]:
-                    isIn = True
+                    is_in = True
                     break
-            self.assertTrue(isIn)
+            self.assertTrue(is_in)
 
         for s, e in zip(starts, ends):
-            self.assertTrue((s, e) in sSet)
+            self.assertTrue((s, e) in s_set)
 
 
 if __name__ == '__main__':

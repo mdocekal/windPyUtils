@@ -15,7 +15,7 @@ T = TypeVar('T')
 R = TypeVar('R')
 
 
-def mulPMap(f: Callable[[T], R], data: Iterable[T], workers: int = -1) -> List[R]:
+def mul_p_map(f: Callable[[T], R], data: Iterable[T], workers: int = -1) -> List[R]:
     """
     Runs function f with arguments X
 
@@ -38,13 +38,13 @@ def mulPMap(f: Callable[[T], R], data: Iterable[T], workers: int = -1) -> List[R
         p.daemon = True
         p.start()
 
-    dataCnt = 0
+    data_cnt = 0
 
     res = []
 
     for i, d in enumerate(data):
         FunRunner.WORK_QUEUE.put((i, d))
-        dataCnt += 1
+        data_cnt += 1
 
         try:
             # read the results
@@ -56,7 +56,7 @@ def mulPMap(f: Callable[[T], R], data: Iterable[T], workers: int = -1) -> List[R
     for _ in range(workers):
         FunRunner.WORK_QUEUE.put(None)
 
-    while len(res) < dataCnt:
+    while len(res) < data_cnt:
         res.append(FunRunner.RESULTS_QUEUE.get())
 
     for p in procs:

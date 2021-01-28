@@ -8,7 +8,7 @@ This module contains generic utils
 from typing import Sequence, List, Tuple, Iterable
 
 
-def getAllSubclasses(cls):
+def get_all_subclasses(cls):
     """
     Searches all subclasses of given class.
 
@@ -28,7 +28,7 @@ def getAllSubclasses(cls):
     return sub
 
 
-def subSeq(s1: Sequence, s2: Sequence) -> bool:
+def sub_seq(s1: Sequence, s2: Sequence) -> bool:
     """
     Checks if sequence s1 is subsequence of s2,
 
@@ -47,7 +47,7 @@ def subSeq(s1: Sequence, s2: Sequence) -> bool:
     return False
 
 
-def searchSubSeq(s1: Sequence, s2: Sequence) -> List[Tuple[int, int]]:
+def search_sub_seq(s1: Sequence, s2: Sequence) -> List[Tuple[int, int]]:
     """
     Searches all occurrences of sequence s1 in s2,
 
@@ -67,9 +67,9 @@ def searchSubSeq(s1: Sequence, s2: Sequence) -> List[Tuple[int, int]]:
     if len(s1) <= len(s2):
         res = []
         for offset in range(0, len(s2) - len(s1) + 1):
-            endOffset = offset + len(s1)
-            if s1 == s2[offset:endOffset]:
-                res.append((offset, endOffset))
+            end_offset = offset + len(s1)
+            if s1 == s2[offset:end_offset]:
+                res.append((offset, end_offset))
 
         return res
 
@@ -105,7 +105,7 @@ class RoundSequence(object):
         return x
 
 
-def comparePosInIterables(a: Iterable, b: Iterable) -> bool:
+def compare_pos_in_iterables(a: Iterable, b: Iterable) -> bool:
     """
     Positionally invariant compare of two iterables.
 

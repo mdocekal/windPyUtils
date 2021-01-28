@@ -6,7 +6,7 @@ Created on 31.01.20
 """
 import itertools
 import unittest
-from windpyutils.generic import subSeq, RoundSequence, searchSubSeq, comparePosInIterables
+from windpyutils.generic import sub_seq, RoundSequence, search_sub_seq, compare_pos_in_iterables
 
 
 class TestSubSeq(unittest.TestCase):
@@ -19,13 +19,13 @@ class TestSubSeq(unittest.TestCase):
         Test for subSeq.
         """
 
-        self.assertTrue(subSeq([], []))
-        self.assertTrue(subSeq([], [1, 2, 3]))
-        self.assertFalse(subSeq([1, 2, 3], []))
-        self.assertTrue(subSeq([2], [1, 2, 3]))
-        self.assertTrue(subSeq([2, 3], [1, 2, 3]))
-        self.assertTrue(subSeq(["Machine", "learning"], ["on", "Machine", "learning", "in", "history"]))
-        self.assertFalse(subSeq(["artificial", "learning"], ["on", "Machine", "learning", "in", "history"]))
+        self.assertTrue(sub_seq([], []))
+        self.assertTrue(sub_seq([], [1, 2, 3]))
+        self.assertFalse(sub_seq([1, 2, 3], []))
+        self.assertTrue(sub_seq([2], [1, 2, 3]))
+        self.assertTrue(sub_seq([2, 3], [1, 2, 3]))
+        self.assertTrue(sub_seq(["Machine", "learning"], ["on", "Machine", "learning", "in", "history"]))
+        self.assertFalse(sub_seq(["artificial", "learning"], ["on", "Machine", "learning", "in", "history"]))
 
 
 class TestRoundSequence(unittest.TestCase):
@@ -50,39 +50,39 @@ class TestSearchSubSeq(unittest.TestCase):
     Unit test of searchSubSeq method.
     """
 
-    def test_searchSubSeq(self):
+    def test_search_sub_seq(self):
         """
         Test for searchSubSeq.
         """
 
         with self.assertRaises(ValueError):
-            _ = searchSubSeq([], [])
+            _ = search_sub_seq([], [])
 
         with self.assertRaises(ValueError):
-            _ = searchSubSeq([], [1, 2, 3])
+            _ = search_sub_seq([], [1, 2, 3])
 
         with self.assertRaises(ValueError):
-            _ = searchSubSeq([1, 2, 3], [])
+            _ = search_sub_seq([1, 2, 3], [])
 
-        self.assertListEqual(searchSubSeq([2], [1, 2, 3]), [(1, 2)])
-        self.assertListEqual(searchSubSeq([2, 3], [1, 2, 3]),  [(1, 3)])
-        self.assertListEqual(searchSubSeq([3, 4], [1, 2, 3]), [])
-        self.assertListEqual(searchSubSeq(["Machine", "learning"], ["on", "Machine", "learning", "in", "history"]), [(1, 3)])
-        self.assertListEqual(searchSubSeq(["artificial", "learning"], ["on", "Machine", "learning", "in", "history"]), [])
+        self.assertListEqual(search_sub_seq([2], [1, 2, 3]), [(1, 2)])
+        self.assertListEqual(search_sub_seq([2, 3], [1, 2, 3]), [(1, 3)])
+        self.assertListEqual(search_sub_seq([3, 4], [1, 2, 3]), [])
+        self.assertListEqual(search_sub_seq(["Machine", "learning"], ["on", "Machine", "learning", "in", "history"]), [(1, 3)])
+        self.assertListEqual(search_sub_seq(["artificial", "learning"], ["on", "Machine", "learning", "in", "history"]), [])
 
 
 class TestComparePosInIterables(unittest.TestCase):
 
     def test_same(self):
-        self.assertTrue(comparePosInIterables([], []))
+        self.assertTrue(compare_pos_in_iterables([], []))
 
         for perm in itertools.permutations([1, 2, 3]):
-            self.assertTrue(comparePosInIterables(perm, [1, 2, 3]))
-            self.assertTrue(comparePosInIterables([1, 2, 3], perm))
+            self.assertTrue(compare_pos_in_iterables(perm, [1, 2, 3]))
+            self.assertTrue(compare_pos_in_iterables([1, 2, 3], perm))
 
     def test_different(self):
-        self.assertFalse(comparePosInIterables([1, 2, 3], [4, 5]))
-        self.assertFalse(comparePosInIterables([1, 2, 3], [1, 4, 3]))
+        self.assertFalse(compare_pos_in_iterables([1, 2, 3], [4, 5]))
+        self.assertFalse(compare_pos_in_iterables([1, 2, 3], [1, 4, 3]))
 
 
 if __name__ == '__main__':

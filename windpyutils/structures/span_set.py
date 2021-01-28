@@ -19,19 +19,19 @@ class SpanSetEqRelation(ABC):
     """
 
     @abstractmethod
-    def __call__(self, xStart: Any, xEnd: Any, yStart: Any, yEnd: Any) -> bool:
+    def __call__(self, x_start: Any, x_end: Any, y_start: Any, y_end: Any) -> bool:
         """
         Determines if span x and span y are equal.
         Span x is span on the left side of the in operator and span y is span from investigated set.
 
-        :param xStart: Start of span x.
-        :type xStart: Any
-        :param xEnd: End of span x.
-        :type xEnd: Any
-        :param yStart: Start of span y.
-        :type yStart: Any
-        :param yEnd: End of span y.
-        :type yEnd: Any
+        :param x_start: Start of span x.
+        :type x_start: Any
+        :param x_end: End of span x.
+        :type x_end: Any
+        :param y_start: Start of span y.
+        :type y_start: Any
+        :param y_end: End of span y.
+        :type y_end: Any
         :return: Returns bool that determines whether x and y spans are equal (true means equal).
         :rtype: bool
         """
@@ -43,8 +43,8 @@ class SpanSetExactEqRelation(SpanSetEqRelation):
     Span equality relation that considers two spans equal only when they are exactly the same.
     """
 
-    def __call__(self, xStart: float, xEnd: float, yStart: float, yEnd: float) -> bool:
-        return xStart == yStart and xEnd == yEnd
+    def __call__(self, x_start: float, x_end: float, y_start: float, y_end: float) -> bool:
+        return x_start == y_start and x_end == y_end
 
 
 class SpanSetPartOfEqRelation(SpanSetEqRelation):
@@ -52,8 +52,8 @@ class SpanSetPartOfEqRelation(SpanSetEqRelation):
     Span equality relation that considers two spans equal only when x span is part of y span (x is completely inside y).
     """
 
-    def __call__(self, xStart: float, xEnd: float, yStart: float, yEnd: float) -> bool:
-        return yStart <= xStart and xEnd <= yEnd
+    def __call__(self, x_start: float, x_end: float, y_start: float, y_end: float) -> bool:
+        return y_start <= x_start and x_end <= y_end
 
 
 class SpanSetIncludesEqRelation(SpanSetEqRelation):
@@ -61,8 +61,8 @@ class SpanSetIncludesEqRelation(SpanSetEqRelation):
     Span equality relation that considers two spans equal only when x span includes whole y span.
     """
 
-    def __call__(self, xStart: float, xEnd: float, yStart: float, yEnd: float) -> bool:
-        return xStart <= yStart and yEnd <= xEnd
+    def __call__(self, x_start: float, x_end: float, y_start: float, y_end: float) -> bool:
+        return x_start <= y_start and y_end <= x_end
 
 
 class SpanSetOverlapsEqRelation(SpanSetEqRelation):
@@ -72,7 +72,7 @@ class SpanSetOverlapsEqRelation(SpanSetEqRelation):
 
     """
 
-    def __call__(self, xStart: float, xEnd: float, yStart: float, yEnd: float) -> bool:
+    def __call__(self, x_start: float, x_end: float, y_start: float, y_end: float) -> bool:
         # Explanation of condition:
         #   It is easier to start with contradiction, because original relation has much more cases, so...
         #   This relation returns false when there is no overlap:
@@ -87,7 +87,7 @@ class SpanSetOverlapsEqRelation(SpanSetEqRelation):
         #   But we are interested in negation, so:
         #   not(xe < ys or ye < xs) =
         #       (xe >= ys) and (ye >= xs)
-        return xEnd >= yStart and yEnd >= xStart
+        return x_end >= y_start and y_end >= x_start
 
 
 class SpanSet(Set):
@@ -110,14 +110,14 @@ class SpanSet(Set):
     :vartype starts: Sequence
     :ivar ends: Spans ends.
     :vartype ends: Sequence
-    :ivar eqRelation: New equal relation that determines equality that is used in __contains__ method
+    :ivar eq_relation: New equal relation that determines equality that is used in __contains__ method
         (and at initialization for similar reason)to determine if span is in given set or more precisely
         that span has a span in this set that is equal to it according to that given relation.
     :vartype eqRelation: SpanSetEqRelation
     """
 
     def __init__(self, starts: Union[Sequence, Iterable[Tuple[Any, Any]]], ends: Sequence = None,
-                 forceNoDupCheck: bool = False, eqRelation: SpanSetEqRelation = SpanSetExactEqRelation()):
+                 force_no_dup_check: bool = False, eq_relation: SpanSetEqRelation = SpanSetExactEqRelation()):
         """
         Set initialization from iterable of spans or two Sequences. Both Sequence must have the same size,
         because span is composed from offsets on index x in way that span's start is starts[x] and span's end is
@@ -131,24 +131,24 @@ class SpanSet(Set):
         :type starts: Union[Sequence, Iterable[Tuple[Any, Any]]]
         :param ends: Spans ends.
         :type ends: Sequence
-        :param forceNoDupCheck: If true than forces to not use duplicate check of spans in inputs and reuses
+        :param force_no_dup_check: If true than forces to not use duplicate check of spans in inputs and reuses
             input Sequences, which means that if you now that there are no duplicates, than you will get more memory
             efficient set and also the initialization process will be faster.
 
             This parameter is not obeyed when starts contains Iterable of spans.
-        :type forceNoDupCheck: bool
-        :param eqRelation: New equal relation that determines equality that is used in __contains__ method
+        :type force_no_dup_check: bool
+        :param eq_relation: New equal relation that determines equality that is used in __contains__ method
         (and at initialization for similar reason)to determine if span is in given set or more precisely
         that span has a span in this set that is equal to it according to that given relation.
-        :type eqRelation: SpanSetEqRelation
+        :type eq_relation: SpanSetEqRelation
         """
 
         super().__init__()
-        self.eqRelation = eqRelation
+        self.eq_relation = eq_relation
 
         if ends is not None:
             assert len(starts) == len(ends)
-            if forceNoDupCheck:
+            if force_no_dup_check:
                 self.starts = starts
                 self.ends = ends
             else:
@@ -158,14 +158,14 @@ class SpanSet(Set):
 
                 for i, s in enumerate(starts):
                     # check if actual span is already in and if not save it to our sequence
-                    notIn = True
+                    not_in = True
                     for investigatedSpanIndex in range(len(self.starts)):
-                        if self.eqRelation(s, ends[i], self.starts[investigatedSpanIndex],
-                                           self.ends[investigatedSpanIndex]):
-                            notIn = False
+                        if self.eq_relation(s, ends[i], self.starts[investigatedSpanIndex],
+                                            self.ends[investigatedSpanIndex]):
+                            not_in = False
                             break
 
-                    if notIn:
+                    if not_in:
                         self.starts.append(s)
                         self.ends.append(ends[i])
 
@@ -174,12 +174,12 @@ class SpanSet(Set):
             self.ends = []
 
             for s, e in starts:
-                notIn = True
+                not_in = True
                 for checkIn in range(len(self.starts)):
-                    if self.eqRelation(s, e, self.starts[checkIn], self.ends[checkIn]):
-                        notIn = False
+                    if self.eq_relation(s, e, self.starts[checkIn], self.ends[checkIn]):
+                        not_in = False
                         break
-                if notIn:
+                if not_in:
                     self.starts.append(s)
                     self.ends.append(e)
 
@@ -195,7 +195,7 @@ class SpanSet(Set):
 
     def __contains__(self, span: Tuple[Any, Any]) -> bool:
         for i, s in enumerate(self.starts):
-            if self.eqRelation(span[0], span[1], s, self.ends[i]):
+            if self.eq_relation(span[0], span[1], s, self.ends[i]):
                 # span that is equal to this one is in this set
                 return True
         return False

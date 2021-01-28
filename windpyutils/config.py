@@ -20,17 +20,17 @@ class Config(dict):
     This dictionary is safely loaded with the ast.literal_eval (https://docs.python.org/3/library/ast.html).
     """
 
-    def __init__(self, pathTo: str):
+    def __init__(self, path_to: str):
         """
         Config initialization.
 
-        :param pathTo: Path to .py file with configuration.
-        :type pathTo: str
+        :param path_to: Path to .py file with configuration.
+        :type path_to: str
         :raise SyntaxError: Invalid input.
         :raise ValueError: Invalid value for a parameter or missing parameter.
         """
-        self._pathTo = pathTo
-        with open(pathTo, "r") as f:
+        self._path_to = path_to
+        with open(path_to, "r") as f:
             config = ast.literal_eval(f.read())
 
             if not isinstance(config, dict):
@@ -40,7 +40,7 @@ class Config(dict):
 
             super().__init__(config)
 
-    def translateFilePath(self, path: str) -> str:
+    def translate_file_path(self, path: str) -> str:
         """
         Translates relative path to the absolute path.
         If the path is already absolute than it returns the original.
@@ -52,7 +52,7 @@ class Config(dict):
         :rtype: str
         """
         if not os.path.isabs(path):
-            path = os.path.join(os.path.dirname(self._pathTo), path)
+            path = os.path.join(os.path.dirname(self._path_to), path)
 
         return path
 

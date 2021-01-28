@@ -9,7 +9,7 @@ import pickle
 import unittest
 from typing import List
 
-from windpyutils.generic import comparePosInIterables
+from windpyutils.generic import compare_pos_in_iterables
 from windpyutils.structures.data_classes import AttributeDrivenDictionary
 
 
@@ -21,17 +21,17 @@ class MyDataClassAttributeDrivenDictionary(AttributeDrivenDictionary):
 
 
 class TestAttributeDrivenDictionary(unittest.TestCase):
-    pathToThisScriptFile = os.path.dirname(os.path.realpath(__file__))
-    pathToTmp = os.path.join(pathToThisScriptFile, "tmp/")
-    pathToPickle = os.path.join(pathToThisScriptFile, "tmp/AttributeDrivenDictionary.pickle")
+    path_to_this_script_file = os.path.dirname(os.path.realpath(__file__))
+    path_to_tmp = os.path.join(path_to_this_script_file, "tmp/")
+    path_to_pickle = os.path.join(path_to_this_script_file, "tmp/AttributeDrivenDictionary.pickle")
 
     def setUp(self) -> None:
         self.m = MyDataClassAttributeDrivenDictionary("hello", 7, [1, 2, 3, 4])
         self.d = {"a": "hello", "b": 7, "c": [1, 2, 3, 4]}
 
     def tearDown(self) -> None:
-        if os.path.exists(self.pathToPickle):
-            os.remove(self.pathToPickle)
+        if os.path.exists(self.path_to_pickle):
+            os.remove(self.path_to_pickle)
 
     def test_set_item(self):
         self.m["a"] = "hi"
@@ -99,10 +99,10 @@ class TestAttributeDrivenDictionary(unittest.TestCase):
         self.assertEqual(self.m.keys(), self.d.keys())
 
     def test_values(self):
-        comparePosInIterables(self.m.values(), self.d.values())
+        compare_pos_in_iterables(self.m.values(), self.d.values())
 
     def test_items(self):
-        comparePosInIterables(self.m.items(), self.d.items())
+        compare_pos_in_iterables(self.m.items(), self.d.items())
 
     def test_pop(self):
         self.m.pop("a")
@@ -141,26 +141,26 @@ class TestAttributeDrivenDictionary(unittest.TestCase):
     def test_repr(self):
         # as far as i am concerned there can be order differences for the same directories
         # so let's make the comparison on key: value part level
-        mSet = set(x.strip() for x in repr(self.m)[1:-1].split(","))
-        dSet = set(x.strip() for x in repr(self.d)[1:-1].split(","))
-        self.assertEqual(mSet, dSet)
+        m_set = set(x.strip() for x in repr(self.m)[1:-1].split(","))
+        d_set = set(x.strip() for x in repr(self.d)[1:-1].split(","))
+        self.assertEqual(m_set, d_set)
 
     def test_str(self):
         # as far as i am concerned there can be order differences for the same directories
         # so let's make the comparison on key: value part level
-        mSet = set(x.strip() for x in str(self.m)[1:-1].split(","))
-        dSet = set(x.strip() for x in str(self.d)[1:-1].split(","))
-        self.assertEqual(mSet, dSet)
+        m_set = set(x.strip() for x in str(self.m)[1:-1].split(","))
+        d_set = set(x.strip() for x in str(self.d)[1:-1].split(","))
+        self.assertEqual(m_set, d_set)
 
     def test_pickling(self):
-        with open(self.pathToPickle, "wb") as f:
+        with open(self.path_to_pickle, "wb") as f:
             pickle.dump(self.m, f)
 
-        with open(self.pathToPickle, "rb") as f:
-            pickledLoaded = pickle.load(f)
+        with open(self.path_to_pickle, "rb") as f:
+            pickled_loaded = pickle.load(f)
 
-            self.assertTrue(isinstance(pickledLoaded, AttributeDrivenDictionary))
-            self.assertEqual(pickledLoaded, self.m)
+            self.assertTrue(isinstance(pickled_loaded, AttributeDrivenDictionary))
+            self.assertEqual(pickled_loaded, self.m)
 
 
 if __name__ == '__main__':

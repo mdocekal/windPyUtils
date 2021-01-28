@@ -36,9 +36,9 @@ class TestEntity(unittest.TestCase):
         with self.assertRaises(AssertionError):
             buffer = CircularBuffer(-1)
 
-        self.assertEqual(self.empty_3.maxSize, 3)
-        self.assertEqual(self.empty_10.maxSize, 10)
-        self.assertEqual(self.filled_3.maxSize, 3)
+        self.assertEqual(self.empty_3.max_size, 3)
+        self.assertEqual(self.empty_10.max_size, 10)
+        self.assertEqual(self.filled_3.max_size, 3)
 
     def test_len(self):
         """

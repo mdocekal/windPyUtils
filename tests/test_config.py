@@ -13,8 +13,8 @@ from windpyutils.config import Config
 
 
 class TestConfig(unittest.TestCase):
-    pathToThisScriptFile = os.path.dirname(os.path.realpath(__file__))
-    valid = os.path.join(pathToThisScriptFile, "fixtures/config.py")
+    path_to_this_script_file = os.path.dirname(os.path.realpath(__file__))
+    valid = os.path.join(path_to_this_script_file, "fixtures/config.py")
 
     def test_valid(self):
         config = dict(
@@ -58,10 +58,10 @@ class TestConfig(unittest.TestCase):
 
     def test_invalid(self):
         with self.assertRaises(SyntaxError):
-            Config(os.path.join(self.pathToThisScriptFile, "fixtures/config_invalid.py"))
+            Config(os.path.join(self.path_to_this_script_file, "fixtures/config_invalid.py"))
 
         with self.assertRaises(SyntaxError):
-            Config(os.path.join(self.pathToThisScriptFile, "fixtures/config_invalid_2.py"))
+            Config(os.path.join(self.path_to_this_script_file, "fixtures/config_invalid_2.py"))
 
 
 if __name__ == '__main__':

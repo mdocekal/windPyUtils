@@ -7,7 +7,7 @@ Unit tests for metrics module.
 """
 import unittest
 
-from windpyutils.metrics import meanSquaredError, rootMeanSquaredError
+from windpyutils.metrics import mean_squared_error, root_mean_squared_error
 
 
 class TestMeanSquaredError(unittest.TestCase):
@@ -16,15 +16,15 @@ class TestMeanSquaredError(unittest.TestCase):
     """
 
     def test_mean_squared_error(self):
-        A = [1, 3, -5.3, 3, 0]
-        B = [2, 3, 5, -0.5, 1.3]
+        a = [1, 3, -5.3, 3, 0]
+        b = [2, 3, 5, -0.5, 1.3]
 
-        self.assertAlmostEqual(meanSquaredError(A, B), 24.206)
+        self.assertAlmostEqual(mean_squared_error(a, b), 24.206)
 
-        A = [5, 5, 5, 5]
-        B = [5, 5, 5, 5]
+        a = [5, 5, 5, 5]
+        b = [5, 5, 5, 5]
 
-        self.assertAlmostEqual(meanSquaredError(A, B), 0)
+        self.assertAlmostEqual(mean_squared_error(a, b), 0)
 
 
 class TestRootMeanSquaredError(unittest.TestCase):
@@ -33,15 +33,15 @@ class TestRootMeanSquaredError(unittest.TestCase):
     """
 
     def test_root_mean_squared_error(self):
-        A = [1, 3, -5.3, 3, 0]
-        B = [2, 3, 5, -0.5, 1.3]
+        a = [1, 3, -5.3, 3, 0]
+        b = [2, 3, 5, -0.5, 1.3]
 
-        self.assertAlmostEqual(rootMeanSquaredError(A, B), 4.91995934942556)
+        self.assertAlmostEqual(root_mean_squared_error(a, b), 4.91995934942556)
 
-        A = [5, 5, 5, 5]
-        B = [5, 5, 5, 5]
+        a = [5, 5, 5, 5]
+        b = [5, 5, 5, 5]
 
-        self.assertAlmostEqual(rootMeanSquaredError(A, B), 0)
+        self.assertAlmostEqual(root_mean_squared_error(a, b), 0)
 
 
 if __name__ == '__main__':

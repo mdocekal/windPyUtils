@@ -67,7 +67,7 @@ class FunRunner(Process):
         """
         Initialization of parallel worker.
 
-        :param pf: Function you want to run in data-parallel way
+        :param pf: Function you want to run in data-parallel way.
         :type pf: Callable[[T], R]
         """
         super().__init__()
@@ -79,13 +79,13 @@ class FunRunner(Process):
         """
         try:
             while True:
-                qItem = self.WORK_QUEUE.get()
+                q_item = self.WORK_QUEUE.get()
 
-                if qItem is None:
+                if q_item is None:
                     # all done
                     break
 
-                i, x = qItem
+                i, x = q_item
                 self.RESULTS_QUEUE.put((i, self.pf(x)))
 
         finally:

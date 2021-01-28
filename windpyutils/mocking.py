@@ -7,7 +7,7 @@ This module contains structures that are useful for mocking.
 """
 from abc import ABC, abstractmethod
 from itertools import count
-from typing import Collection, Sequence, Optional, Union, Iterator
+from typing import Sequence, Union, Iterator
 
 from windpyutils.generic import RoundSequence
 
