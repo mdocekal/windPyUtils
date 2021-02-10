@@ -131,7 +131,7 @@ def print_buckets_histogram(values: Dict[float, float], buckets: int = -1, bucke
         hist = [0] * buckets
 
         for k, v in values.items():
-            belongs_to_bucket = int(k / bucket_size)
+            belongs_to_bucket = int((k - min_k) / bucket_size)
             if belongs_to_bucket == buckets:  # only when the k is max
                 # the last bucket interval is closed and we have max value so it belongs to the las bucket
                 belongs_to_bucket -= 1
@@ -139,7 +139,7 @@ def print_buckets_histogram(values: Dict[float, float], buckets: int = -1, bucke
             hist[belongs_to_bucket] += v
 
         bucket_labels = []
-        bucket_start = 0
+        bucket_start = min_k
         for bucket_offset in range(len(hist) - 1):  # the last one is handled separately
             bucket_end = bucket_start + bucket_size
             str_s = f"{bucket_start:.{decimals}f}".rstrip("0").rstrip(".")

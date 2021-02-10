@@ -170,6 +170,17 @@ class TestPrintBucketsHistogram(unittest.TestCase):
 
         out = StringIO()
         with contextlib.redirect_stdout(out):
+            print_buckets_histogram({100: 2, 105: 8, 110: 18, 115: 8, 120: 2}, buckets=5)
+
+        self.assertEqual(out.getvalue(),
+                         "[100,104) ████ 2\n"
+                         "[104,108) ██████████████████ 8\n"
+                         "[108,112) ████████████████████████████████████████ 18\n"
+                         "[112,116) ██████████████████ 8\n"
+                         "[116,120] ████ 2\n")
+
+        out = StringIO()
+        with contextlib.redirect_stdout(out):
             print_buckets_histogram({0: 2}, buckets=5)
 
         self.assertEqual(out.getvalue(), "0 ████████████████████████████████████████ 2\n")
