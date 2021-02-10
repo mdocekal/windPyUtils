@@ -29,9 +29,10 @@ class PrintBuffer:
 
     :var file_out: Where the output should be printed.
     :var print_flush: flush parameter for print method
+    :var end: String appended to the last character before print. Default is a newline.
     """
 
-    def __init__(self, file_out: TextIO, print_flush: bool = False):
+    def __init__(self, file_out: TextIO, print_flush: bool = False, end: str = "\n"):
         """
         initialization of buffer
 
@@ -39,11 +40,14 @@ class PrintBuffer:
         :type file_out: TextIO
         :param print_flush: flush parameter for print method
         :type print_flush: bool
+        :param end: String appended to the last character before print. Default is a newline.
+        :type end: str
         """
         self._waiting_for = 0
         self._buffer = {}
         self.fileOut = file_out
         self.printFlush = print_flush
+        self.end = end
 
     def _print(self, value: str):
         """
@@ -52,7 +56,7 @@ class PrintBuffer:
         :param value: Value that should be printed.
         :type value: str
         """
-        print(value, file=self.fileOut, flush=self.printFlush)
+        print(value, file=self.fileOut, flush=self.printFlush, end=self.end)
 
     @property
     def waiting_for(self) -> int:
