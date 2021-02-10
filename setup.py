@@ -20,6 +20,7 @@ setup_args = dict(
     author='Martin Dočekal',
     keywords=['utils', 'general usage'],
     url='https://github.com/mdocekal/windPyUtils',
+    python_requires='>=3.6',
     install_requires=[]
 )
 
