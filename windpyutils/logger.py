@@ -14,7 +14,7 @@ class Logger(Observable, metaclass=Singleton):
     log method.
 
     If you want to log something just call Logger().log("something") and all
-    observers, registered with Logger().registerObserver("LOG", observerCallbackMethod) method,
+    observers, registered with Logger().register_observer("LOG", observer_callback_method) method,
     will be called.
 
     """

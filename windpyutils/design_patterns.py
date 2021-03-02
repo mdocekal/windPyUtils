@@ -35,15 +35,15 @@ class Observable(object):
                 super().__init__()
 
             @Observable._event("STARTS")
-            def startsTheEngine(self):
+            def starts_the_engine(self):
                 ...
 
             @Observable._event("END", True)    #true means that all arguments will be passed to observer
-            def endTheEngine(self, data):
+            def end_the_engine(self, data):
                 ...
 
         a=A()
-        a.registerObserver("STARTS", observerCallbackMethod)
+        a.register_observer("STARTS", observer_callback_method)
     """
 
     @staticmethod
