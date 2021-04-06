@@ -34,17 +34,24 @@ class Observable(object):
             def __init__(self):
                 super().__init__()
 
-            @Observable._event("STARTS")
+            @Observable.event("STARTS")
             def starts_the_engine(self):
                 ...
 
-            @Observable._event("END", True)    #true means that all arguments will be passed to observer
+            @Observable.event("END", True)    #true means that all arguments will be passed to observer
             def end_the_engine(self, data):
                 ...
 
         a=A()
         a.register_observer("STARTS", observer_callback_method)
     """
+
+    @staticmethod
+    def event(tag, pass_arguments=False):
+        """
+        Use this decorator to mark methods that could be observed.
+        """
+        return Observable._event(tag, pass_arguments)
 
     @staticmethod
     def _event(tag, pass_arguments=False):
