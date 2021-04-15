@@ -8,6 +8,7 @@ Module containing class that stores configuration.
 """
 import ast
 import os
+from pathlib import Path
 from typing import Dict
 
 
@@ -29,7 +30,7 @@ class Config(dict):
         :raise SyntaxError: Invalid input.
         :raise ValueError: Invalid value for a parameter or missing parameter.
         """
-        self._path_to = path_to
+        self._path_to = Path(path_to).absolute()
         with open(path_to, "r") as f:
             config = ast.literal_eval(f.read())
 
