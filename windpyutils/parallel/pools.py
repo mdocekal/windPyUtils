@@ -87,7 +87,7 @@ class FunctorMap:
             p.start()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type=None, exc_val=None, exc_tb=None):
         for _ in range(len(self.procs)):
             self._work_queue.put(None)
         for p in self.procs:
