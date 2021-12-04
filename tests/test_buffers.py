@@ -7,7 +7,69 @@ Created on 09.04.20
 import unittest
 from io import StringIO
 
-from windpyutils.buffers import PrintBuffer
+from windpyutils.buffers import PrintBuffer, Buffer
+
+
+class TestBuffer(unittest.TestCase):
+    def setUp(self) -> None:
+        self.b = Buffer()
+
+    def test_all_in_order(self):
+        self.assertEqual(0, self.b(0, "A").waiting_for())
+        self.assertEqual(0, self.b(1, "B").waiting_for())
+        self.assertEqual(0, self.b(2, "C").waiting_for())
+        self.assertEqual(0, self.b(3, "D").waiting_for())
+
+        self.assertListEqual(["A", "B", "C", "D"], list(self.b))
+        self.assertEqual(4, self.b.waiting_for())
+
+        self.assertEqual(4, self.b(4, "E").waiting_for())
+        self.assertEqual(4, self.b(5, "F").waiting_for())
+
+        self.assertListEqual(["E", "F"], list(self.b))
+        self.assertEqual(6, self.b.waiting_for())
+
+    def test_not_in_order(self):
+        self.assertEqual(0, self.b(1, "B").waiting_for())
+        self.assertEqual(0, self.b(2, "C").waiting_for())
+        self.assertEqual(0, self.b(0, "A").waiting_for())
+        self.assertEqual(0, self.b(3, "D").waiting_for())
+        self.assertEqual(0, self.b(5, "F").waiting_for())
+
+        self.assertListEqual(["A", "B", "C", "D"], list(self.b))
+        self.assertEqual(4, self.b.waiting_for())
+
+        self.assertEqual(4, self.b(4, "E").waiting_for())
+
+        self.assertListEqual(["E", "F"], list(self.b))
+        self.assertEqual(6, self.b.waiting_for())
+
+    def test_insert_same_not_generated(self):
+        self.assertEqual(0, self.b(0, "A").waiting_for())
+        self.assertEqual(0, self.b(1, "B").waiting_for())
+        self.assertEqual(0, self.b(0, "C").waiting_for())
+        self.assertListEqual(["C", "B"], list(self.b))
+
+    def test_insert_generated(self):
+        self.assertEqual(0, self.b(0, "A").waiting_for())
+        self.assertEqual(0, self.b(1, "B").waiting_for())
+        self.assertListEqual(["A", "B"], list(self.b))
+        with self.assertRaises(AttributeError):
+            self.b(0, "C")
+
+    def test_cleaning_storage(self):
+        self.b(0, "A")
+        self.b(1, "B")
+        self.assertEqual({0: "A", 1: "B"}, self.b._storage)
+        list(self.b)
+        self.assertEqual({}, self.b._storage)
+
+    def test_flush(self):
+        self.b(0, "A")
+        self.b(1, "B")
+        self.b.flush()
+        self.assertEqual({}, self.b._storage)
+        self.assertEqual(0, self.b.waiting_for())
 
 
 class TestPrintBuffer(unittest.TestCase):

@@ -6,7 +6,75 @@ Module containing buffers.
 
 :author:     Martin Dočekal
 """
-from typing import TextIO
+from typing import TextIO, Generator, Any
+
+
+class Buffer:
+    """
+    Buffer for remaining order.
+    For each data item expects its position (starting from 0).
+
+    Example:
+        >>> b = Buffer()
+        >>> b(1, "B")
+        >>> b(0, "A")
+        >>> b(2, "C")
+        >>> b(4, "E")
+        >>> b.waiting_for()
+        0
+        >>> list(b)
+        ["A", "B", "C"]
+        >>> b.waiting_for()
+        3
+        >>> b(3, "D")
+        >>> list(b)
+        ["D", "E"]
+    """
+
+    def __init__(self):
+        self._storage = {}
+        self._waiting_for = 0
+
+    def waiting_for(self) -> int:
+        """
+        Position of item that the buffer is waiting for to generate next.
+        """
+        return self._waiting_for
+
+    def __call__(self, i: int, x: Any) -> "Buffer":
+        """
+        Adds new item into buffer.
+        If you place an item with same i, before buffering, the new item wil overwrite the old one.
+
+        :param i: number for determining order
+        :param x: data
+        :return: returns itself
+        :raise AttributeError: when you place already generated position
+        """
+
+        if i < self._waiting_for:
+            raise AttributeError("Already generated position is placed.")
+
+        self._storage[i] = x
+        return self
+
+    def __iter__(self) -> Generator[Any, None, None]:
+        """
+        Generates subsequence that is in order already
+
+        :return: generator of buffered items
+        """
+        while self._waiting_for in self._storage:
+            yield self._storage[self._waiting_for]
+            del self._storage[self._waiting_for]
+            self._waiting_for += 1
+
+    def flush(self):
+        """
+        Flushes the buffer.
+        """
+        self._storage = {}
+        self._waiting_for = 0
 
 
 class PrintBuffer:

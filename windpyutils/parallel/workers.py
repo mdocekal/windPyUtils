@@ -18,7 +18,7 @@ class FunRunner(Process):
     """
     Representation of one parallel process that runs given function on data from shared queue :py:attr:`~WORK_QUEUE`
     (shared among all the others FunRunners). It expects that the data is tuple
-    (IS_MEANT_FOR_IDS_BUT_CAN_BY_ANYTHING_YOU_WANT, data) or None.
+    (IS_MEANT_FOR_IDS_BUT_CAN_BY_ANYTHING_YOU_WANT, List[data]) or None.
     The None should be put into :py:attr:`~WORK_QUEUE` to terminate a FunRunner.
 
     The results are put into the :py:attr:`~RESULTS_QUEUE`.
@@ -35,13 +35,13 @@ class FunRunner(Process):
         res = []
         # push data to workers
         for i, d in enumerate(data):
-            FunRunner.WORK_QUEUE.put((i, d))
+            FunRunner.WORK_QUEUE.put((i, [d]))
             dataCnt += 1
 
             try:
                 # read the results
                 while True:
-                    res.append(FunRunner.RESULTS_QUEUE.get(False))
+                    res.append(FunRunner.RESULTS_QUEUE.get(False)[0])
             except queue.Empty:
                 pass
 
@@ -85,8 +85,9 @@ class FunRunner(Process):
                     # all done
                     break
 
-                i, x = q_item
-                self.RESULTS_QUEUE.put((i, self.pf(x)))
+                i, data_list = q_item
+
+                self.RESULTS_QUEUE.put((i, [self.pf(x) for x in data_list]))
 
         finally:
             self.WORK_QUEUE.close()

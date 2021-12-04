@@ -32,13 +32,14 @@ class TestFunRunner(unittest.TestCase):
 
             # push data to workers
             for i, d in enumerate(data):
-                FunRunner.WORK_QUEUE.put((i, d))
+                FunRunner.WORK_QUEUE.put((i, [d]))
                 data_cnt += 1
 
                 try:
                     # read the results
                     while True:
-                        res.append(FunRunner.RESULTS_QUEUE.get(False))
+                        act = FunRunner.RESULTS_QUEUE.get(False)
+                        res.append((act[0], act[1][0]))
                 except queue.Empty:
                     pass
 
@@ -48,7 +49,8 @@ class TestFunRunner(unittest.TestCase):
 
             # get the rest of results
             while len(res) < data_cnt:
-                res.append(FunRunner.RESULTS_QUEUE.get())
+                act = FunRunner.RESULTS_QUEUE.get()
+                res.append((act[0], act[1][0]))
 
             for p in procs:
                 p.join()
