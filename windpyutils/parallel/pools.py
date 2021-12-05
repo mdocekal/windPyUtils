@@ -7,13 +7,10 @@ Contains parallel functor map.
 """
 import multiprocessing
 import queue
-from collections import Callable
 from multiprocessing import Process, Queue
-
-from typing import TypeVar, Iterable, Generator, Any
+from typing import TypeVar, Iterable, Generator, Callable
 
 from windpyutils.buffers import Buffer
-from windpyutils.parallel.workers import FunRunner
 
 T = TypeVar('T')
 R = TypeVar('R')
