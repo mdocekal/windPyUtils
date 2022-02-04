@@ -6,7 +6,7 @@ Created on 31.01.20
 """
 import itertools
 import unittest
-from windpyutils.generic import sub_seq, RoundSequence, search_sub_seq, compare_pos_in_iterables
+from windpyutils.generic import sub_seq, RoundSequence, search_sub_seq, compare_pos_in_iterables, Batcher
 
 
 class TestSubSeq(unittest.TestCase):
@@ -41,7 +41,7 @@ class TestRoundSequence(unittest.TestCase):
         for i, x in enumerate(self.r):
             self.assertEqual(self.data[i % len(self.data)], x)
 
-            if i == len(self.data)*2.5:
+            if i == len(self.data) * 2.5:
                 break
 
 
@@ -67,8 +67,10 @@ class TestSearchSubSeq(unittest.TestCase):
         self.assertListEqual(search_sub_seq([2], [1, 2, 3]), [(1, 2)])
         self.assertListEqual(search_sub_seq([2, 3], [1, 2, 3]), [(1, 3)])
         self.assertListEqual(search_sub_seq([3, 4], [1, 2, 3]), [])
-        self.assertListEqual(search_sub_seq(["Machine", "learning"], ["on", "Machine", "learning", "in", "history"]), [(1, 3)])
-        self.assertListEqual(search_sub_seq(["artificial", "learning"], ["on", "Machine", "learning", "in", "history"]), [])
+        self.assertListEqual(search_sub_seq(["Machine", "learning"], ["on", "Machine", "learning", "in", "history"]),
+                             [(1, 3)])
+        self.assertListEqual(search_sub_seq(["artificial", "learning"], ["on", "Machine", "learning", "in", "history"]),
+                             [])
 
 
 class TestComparePosInIterables(unittest.TestCase):
@@ -83,6 +85,61 @@ class TestComparePosInIterables(unittest.TestCase):
     def test_different(self):
         self.assertFalse(compare_pos_in_iterables([1, 2, 3], [4, 5]))
         self.assertFalse(compare_pos_in_iterables([1, 2, 3], [1, 4, 3]))
+
+
+class TestBatcher(unittest.TestCase):
+
+    def test_single_bigger_batch(self):
+        batcher = Batcher([1, 2, 3, 4, 5], 10)
+
+        self.assertEqual(1, len(batcher))
+        self.assertListEqual([1, 2, 3, 4, 5], batcher[0])
+        with self.assertRaises(IndexError):
+            _ = batcher[1]
+
+    def test_single_invalid_batch_size(self):
+        with self.assertRaises(ValueError):
+            Batcher([1, 2, 3, 4, 5], 0)
+
+    def test_single_non_divisible_by_batch_size(self):
+        batcher = Batcher([1, 2, 3, 4, 5], 3)
+
+        self.assertEqual(2, len(batcher))
+        self.assertListEqual([1, 2, 3], batcher[0])
+        self.assertListEqual([4, 5], batcher[1])
+
+        with self.assertRaises(IndexError):
+            _ = batcher[2]
+
+    def test_single_divisible_by_batch_size(self):
+        batcher = Batcher([1, 2, 3, 4, 5, 6], 3)
+
+        self.assertEqual(2, len(batcher))
+        self.assertListEqual([1, 2, 3], batcher[0])
+        self.assertListEqual([4, 5, 6], batcher[1])
+
+        with self.assertRaises(IndexError):
+            _ = batcher[2]
+
+    def test_multi_with_different_length(self):
+        with self.assertRaises(ValueError):
+            batcher = Batcher(([1, 2, 3, 4, 5, 6], [1, 2]), 3)
+
+    def test_multi(self):
+        batcher = Batcher(([1, 2, 3, 4], ["a", "b", "c", "d"]), 2)
+
+        self.assertEqual(2, len(batcher))
+
+        f, s = batcher[0]
+        self.assertListEqual([1, 2], f)
+        self.assertListEqual(["a", "b"], s)
+
+        f, s = batcher[1]
+        self.assertListEqual([3, 4], f)
+        self.assertListEqual(["c", "d"], s)
+
+        with self.assertRaises(IndexError):
+            _ = batcher[2]
 
 
 if __name__ == '__main__':

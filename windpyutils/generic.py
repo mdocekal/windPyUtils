@@ -5,7 +5,8 @@ This module contains generic utils
 
 :author:     Martin Dočekal
 """
-from typing import Sequence, List, Tuple, Iterable
+import math
+from typing import Sequence, List, Tuple, Iterable, Union, Any
 
 
 def get_all_subclasses(cls):
@@ -132,3 +133,56 @@ def compare_pos_in_iterables(a: Iterable, b: Iterable) -> bool:
     except ValueError:
         return False
     return len(b) == 0
+
+
+class Batcher:
+    """
+    Allows accessing data in batches
+    """
+
+    def __init__(self, batchify_data: Union[Sequence[Any], Tuple[Sequence[Any], ...]], batch_size: int):
+        """
+        Initialization of batcher.
+
+        :param batchify_data: data that should be batchified
+            it could be a single sequence or tuple of sequences
+            in case it is a tuple of sequences batcher will return a batch for every sequene in tuple
+        :param batch_size:
+        :raise ValueError: when the batch size is invalid or the sequences are of different length
+        """
+        if isinstance(batchify_data, tuple) \
+                and any(len(x) != len(y) for x, y in zip(batchify_data[:-1], batchify_data[1:])):
+            raise ValueError("Sequences are of different length")
+
+        if batch_size <= 0:
+            raise ValueError("Batch size must be positive integer.")
+
+        self.data = batchify_data
+        self.batch_size = batch_size
+
+    def __len__(self):
+        """
+        Number of batches.
+        """
+
+        samples = len(self.data[0]) if isinstance(self.data, tuple) else len(self.data)
+        return math.ceil(samples / self.batch_size)
+
+    def __getitem__(self, item) -> Union[Sequence[Any], Tuple[Sequence[Any], ...]]:
+        """
+        Get batch on given index.
+
+        :param item: index of a batch
+        :return: Batch on given index or, in case the tuple was provided in constructor, tuple with batches.
+            One for each data sequence.
+        :raise IndexError: on invalid index
+        """
+        if item >= len(self):
+            raise IndexError()
+
+        offset = item * self.batch_size
+
+        if isinstance(self.data, tuple):
+            return tuple(x[offset:offset + self.batch_size] for x in self.data)
+        else:
+            return self.data[offset:offset + self.batch_size]
