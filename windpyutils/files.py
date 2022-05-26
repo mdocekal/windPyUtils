@@ -6,7 +6,7 @@ Utils for work with files.
 :author:     Martin Dočekal
 """
 import csv
-from typing import Union, Dict, Any, Type
+from typing import Union, Dict, Any, Type, List
 
 
 class RandomLineAccessFile:
@@ -90,17 +90,29 @@ class RandomLineAccessFile:
             self.file.close()
             self.file = None
 
-    def __getitem__(self, n) -> str:
+    def __getitem__(self,  selector: Union[int, slice]) -> Union[str, List[str]]:
         """
         Get n-th line from file.
 
-        :param n: line index
-        :return: n-th line
+        :param n: line index or slice
+        :return: n-th line or list of lines in case of slice
         :raise RuntimeError: When the file is not opened.
         """
         if self.file is None:
             raise RuntimeError("Firstly open the file.")
 
+        if isinstance(selector, slice):
+            return [self._get_item(i) for i in range(len(self))[selector]]
+
+        return self._get_item(selector)
+
+    def _get_item(self, n: int) -> str:
+        """
+        Get n-th line from file.
+
+        :param n: line index
+        :return: n-th line
+        """
         self.file.seek(self._line_offsets[n])
         return self.file.readline()
 

@@ -33,13 +33,22 @@ class TestRandomLineAccessFile(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             _ = self.lines_file[0]
 
-    def test_get_line(self):
+    def test_get_line_one_by_one(self):
         indices = [i for i in range(1000)]
         random.shuffle(indices)
 
         with self.lines_file as lines:
             for i in indices:
                 self.assertEqual(int(lines[i]), i)
+
+    def test_get_range(self):
+        indices = [i for i in range(1000)]
+        random.shuffle(indices)
+
+        with self.lines_file as lines:
+            self.assertListEqual([i for i in range(10, 20)],  [int(x) for x in lines[10:20]])
+            self.assertListEqual([i for i in range(10, 20, 2)], [int(x) for x in lines[10:20:2]])
+            self.assertListEqual([i for i in range(900)], [int(x) for x in lines[:-100]])
 
 
 class TestMapAccessFile(unittest.TestCase):
