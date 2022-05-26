@@ -191,6 +191,16 @@ class TestPrintBucketsHistogram(unittest.TestCase):
         with self.assertRaises(AssertionError):
             print_buckets_histogram({0: 2, 5: 8, 10: 18, 15: 8, 20: 2}, buckets=-2)
 
+        out = StringIO()
+        with contextlib.redirect_stdout(out):
+            print_buckets_histogram({0: 1, 2: 1}, buckets=4)
+
+        self.assertEqual(out.getvalue(),
+                         "[0,0.5) ████████████████████████████████████████ 1\n"
+                         "[0.5,1)  0\n"
+                         "[1,1.5)  0\n"
+                         "[1.5,2] ████████████████████████████████████████ 1\n")
+
     def test_bucket_size_int(self):
         out = StringIO()
         with contextlib.redirect_stdout(out):
@@ -209,6 +219,15 @@ class TestPrintBucketsHistogram(unittest.TestCase):
                          "[0,7)   ██████████████████████ 10\n"
                          "[7,14)  ████████████████████████████████████████ 18\n"
                          "[14,21] ██████████████████████ 10\n")
+
+        out = StringIO()
+        with contextlib.redirect_stdout(out):
+            print_buckets_histogram({0: 1, 1: 1, 3: 1}, buckets=10, bucket_size_int=True)
+
+        self.assertEqual(out.getvalue(),
+                         "0 ████████████████████████████████████████ 1\n"
+                         "1 ████████████████████████████████████████ 1\n"
+                         "3 ████████████████████████████████████████ 1\n")
 
     def test_decimals(self):
         out = StringIO()

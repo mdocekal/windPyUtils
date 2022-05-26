@@ -115,7 +115,7 @@ def print_buckets_histogram(values: Dict[float, float], buckets: int = -1, bucke
     assert buckets == -1 or buckets > 0
     assert len(values) > 0
 
-    if buckets == -1 or len(values) == 1:
+    if buckets == -1 or len(values) == 1 or (bucket_size_int and max(values) - min(values) <= buckets):
         # buckets are already defined
         print_histogram([(str(label), val) for label, val in sorted(values.items(), key=lambda ite: ite[0])],
                         max_width, file, bar_char, print_value)
