@@ -102,11 +102,11 @@ class RandomLineAccessFile:
             raise RuntimeError("Firstly open the file.")
 
         if isinstance(selector, slice):
-            return [self._get_item(i) for i in range(len(self))[selector]]
+            return [self.__get_item(i) for i in range(len(self))[selector]]
 
-        return self._get_item(selector)
+        return self.__get_item(selector)
 
-    def _get_item(self, n: int) -> str:
+    def __get_item(self, n: int) -> str:
         """
         Get n-th line from file.
 
