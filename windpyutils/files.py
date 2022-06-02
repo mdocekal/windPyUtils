@@ -5,11 +5,107 @@ Utils for work with files.
 
 :author:     Martin Dočekal
 """
+import collections.abc
 import csv
-from typing import Union, Dict, Any, Type, List
+import mmap
+from abc import ABC, abstractmethod
+from contextlib import nullcontext
+from typing import Union, Dict, Any, Type, List, Optional, Sequence, MutableSequence, TextIO
 
 
-class RandomLineAccessFile:
+class BaseRandomLineAccessFile(ABC):
+    """
+    Base class for all RandomLineAccessFiles these are files that allows to access line in file by its index.
+    """
+
+    def __init__(self, path_to: str):
+        """
+        initialization
+
+        :param path_to: path to file
+        """
+        self.path_to = path_to
+        self._lines: MutableSequence[Union[int, str]] = []    # it may contain line offsets or line contents
+
+    def __enter__(self):
+        self.open()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
+
+    def __len__(self) -> int:
+        """
+        Number of lines in the file.
+
+        :return: Number of lines in the file.
+        """
+        return len(self._lines)
+
+    @abstractmethod
+    def open(self) -> "BaseRandomLineAccessFile":
+        """
+        Open the file if it was closed, else it is just empty operation.
+
+        :return: Returns the object itself.
+        :rtype: BaseRandomLineAccessFile
+        """
+
+        pass
+
+    @abstractmethod
+    def close(self):
+        """
+        Closes the file.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def closed(self) -> bool:
+        """
+        Flag showing whether this file is closed.
+        """
+        pass
+
+    def __getitem__(self,  selector: Union[int, slice]) -> Union[str, List[str]]:
+        """
+        Get n-th line from file.
+
+        :param n: line index or slice
+        :return: n-th line or list of lines in case of slice
+        :raise RuntimeError: When the file is not opened.
+        :raise IndexError: When the selector is invalid
+        """
+        if self.closed:
+            raise RuntimeError("Firstly open the file.")
+
+        if isinstance(selector, slice):
+            return [self._get_item(i) for i in range(len(self))[selector]]
+
+        return self._get_item(selector)
+
+    def _get_item(self, n: int) -> str:
+        """
+        Get n-th line content.
+
+        :param n: line index
+        :return: n-th line
+        """
+        return self._read_line(n)
+
+    @abstractmethod
+    def _read_line(self, n: int) -> str:
+        """
+        Reads n-th line from file.
+
+        :param n: line index
+        :return: n-th line
+        """
+        pass
+
+
+class RandomLineAccessFile(BaseRandomLineAccessFile):
     """
     Allows fast access to any line in given file.
     This structure is just for reading.
@@ -28,46 +124,33 @@ class RandomLineAccessFile:
     :vartype file: Optional[TextIO]
     """
 
-    def __init__(self, path_to: str):
+    def __init__(self, path_to: str, line_offsets: Optional[Sequence[int]] = None):
         """
         initialization
         Makes just the line offsets index. Whole file itself is not loaded into memory.
 
         :param path_to: path to file
+        :param line_offsets: Pre-creeated index of line offsets. If None it will be created automatically
         """
 
-        self.path_to = path_to
+        super().__init__(path_to)
         self.file = None
-        self._line_offsets = None
-        self._index_file()
+        self._lines = line_offsets
+        if line_offsets is None:
+            self._index_file()
 
     def _index_file(self):
         """
         Makes index of line offsets.
         """
 
-        self._line_offsets = [0]
+        self._lines = [0]
 
         with open(self.path_to, "rb") as f:
             while f.readline():
-                self._line_offsets.append(f.tell())
+                self._lines.append(f.tell())
 
-        del self._line_offsets[-1]
-
-    def __enter__(self):
-        self.open()
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.close()
-
-    def __len__(self) -> int:
-        """
-        Number of lines in the file.
-
-        :return: Number of lines in the file.
-        """
-        return len(self._line_offsets)
+        del self._lines[-1]
 
     def open(self) -> "RandomLineAccessFile":
         """
@@ -90,31 +173,148 @@ class RandomLineAccessFile:
             self.file.close()
             self.file = None
 
-    def __getitem__(self,  selector: Union[int, slice]) -> Union[str, List[str]]:
-        """
-        Get n-th line from file.
+    @property
+    def closed(self) -> bool:
+        return self.file is None
 
-        :param n: line index or slice
-        :return: n-th line or list of lines in case of slice
-        :raise RuntimeError: When the file is not opened.
-        """
+    def _read_line(self, n: int) -> str:
+        self.file.seek(self._lines[n])
+        return self.file.readline().rstrip("\n")
+
+
+class MemoryMappedRandomLineAccessFile(RandomLineAccessFile):
+    def __init__(self, path_to: str, line_offsets: Optional[Sequence[int]] = None):
+        super().__init__(path_to, line_offsets)
+        self.mm = None
+
+    def open(self) -> "MemoryMappedRandomLineAccessFile":
         if self.file is None:
-            raise RuntimeError("Firstly open the file.")
+            self.file = open(self.path_to, "rb")
+            self.mm = mmap.mmap(self.file.fileno(), 0, access=mmap.ACCESS_READ)
+        return self
 
-        if isinstance(selector, slice):
-            return [self.__get_item(i) for i in range(len(self))[selector]]
+    def close(self):
+        if self.file is not None:
+            self.mm.close()
+            self.file.close()
+            self.file = None
 
-        return self.__get_item(selector)
+    def _read_line(self, n: int) -> str:
+        self.mm.seek(self._lines[n])
+        return self.mm.readline().decode().rstrip("\n")
 
-    def __get_item(self, n: int) -> str:
+
+class BaseMutableRandomLineAccessFile(BaseRandomLineAccessFile, collections.abc.MutableSequence, ABC):
+    """
+    Base class for random line access file that acts like mutable sequence of lines.
+    So it e.g. allows to change or append new lines.
+
+    Those new/modified lines will not be immediately written to the file, but rather the changes will be done in memory
+    which allows to make the work with a file more effective.
+    You can save the file when you are done with changes.
+
+    """
+
+    def _get_item(self, n: int) -> str:
         """
-        Get n-th line from file.
+        Determines whether the n-th line should be readed from file or memory and returns it.
 
         :param n: line index
         :return: n-th line
         """
-        self.file.seek(self._line_offsets[n])
-        return self.file.readline()
+        line = self._lines[n]
+        if isinstance(line, str):
+            return line
+        return self._read_line(n)
+
+    def __setitem__(self, i: int, content: str):
+        """
+        change n-th line
+
+        :param i: line index
+        :param content: new content of a line
+            It is not checked whether the content contains line separator and if it does in memory it acts like single
+            line, but when the file is saved it becomes to act as multiple lines.
+        :raise IndexError: When the key is invalid
+        :raise ValueError: when invalid content is provided
+        """
+        if not isinstance(content, str):
+            raise ValueError("You can set only string content.")
+
+        self._lines[i] = content
+
+    def __delitem__(self, n: int):
+        """
+        remove n-th line
+
+        :param n: index of line
+        """
+        del self._lines[n]
+
+    def insert(self, index: int, content: str):
+        """
+        insert new line at specified index
+
+        :param index: index where the line should be inserted
+        :param content: content of a line
+        It is not checked whether the content contains line separator and if it does in memory it acts like single
+            line, but when the file is saved it becomes to act as multiple lines.
+        :raise ValueError: when invalid content is provided
+        """
+        if not isinstance(content, str):
+            raise ValueError("You can insert only string content.")
+
+        self._lines.insert(index, content)
+
+    def save(self, out: Union[str, TextIO], line_ending: str = "\n"):
+        """
+        Saves lines to given file.
+
+        :param out: path to file or opened file
+        :param line_ending: it allows to choose which line ending should be used
+        """
+
+        with (open(out, "w") if isinstance(out, str) else nullcontext()) as opened_f:
+            f = opened_f if isinstance(out, str) else out
+
+            for line in self:
+                line: str
+                print(line.rstrip("\n"), file=f, end=line_ending)
+
+
+class MutableRandomLineAccessFile(BaseMutableRandomLineAccessFile, RandomLineAccessFile):
+    """
+    Mutable variant of RandomLineAccessFile
+    See :class:`.BaseMutableRandomLineAccessFile` for more information.
+
+
+    Example:
+        >>>with MutableRandomLineAccessFile("example.txt") as file:
+        >>>    print(file[1])
+        "content on line index 1"
+        >>>    file[1] = "New line content"
+        >>>    print(file[1])
+        "New line content"
+        >>>    file.save("results.txt")
+    """
+    pass
+
+
+class MutableMemoryMappedRandomLineAccessFile(BaseMutableRandomLineAccessFile, MemoryMappedRandomLineAccessFile):
+    """
+    Mutable variant of MemoryMappedRandomLineAccessFile
+    See :class:`.BaseMutableRandomLineAccessFile` for more information.
+
+    Example:
+        >>>with MutableMemoryMappedRandomLineAccessFile("example.txt") as file:
+        >>>    print(file[1])
+        "content on line index 1"
+        >>>    file[1] = "New line content"
+        >>>    print(file[1])
+        "New line content"
+        >>>    file.save("results.txt")
+    """
+    pass
 
 
 class MapAccessFile:

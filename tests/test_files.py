@@ -8,13 +8,17 @@ Tests for files module.
 import os
 import random
 import unittest
+from io import StringIO
 
-from windpyutils.files import RandomLineAccessFile, MapAccessFile
+from windpyutils.files import RandomLineAccessFile, MapAccessFile, MemoryMappedRandomLineAccessFile, \
+    MutableRandomLineAccessFile, MutableMemoryMappedRandomLineAccessFile
 
 path_to_this_script_file = os.path.dirname(os.path.realpath(__file__))
 file_with_line_numbers = os.path.join(path_to_this_script_file, "fixtures/file_with_line_numbers.txt")
 file_with_mapping = os.path.join(path_to_this_script_file, "fixtures/mapped_file.txt")
 file_with_mapping_index = os.path.join(path_to_this_script_file, "fixtures/mapped_file.index")
+
+RES_TMP_FILE = os.path.join(path_to_this_script_file, "tmp/res.txt")
 
 
 class TestRandomLineAccessFile(unittest.TestCase):
@@ -49,6 +53,120 @@ class TestRandomLineAccessFile(unittest.TestCase):
             self.assertListEqual([i for i in range(10, 20)],  [int(x) for x in lines[10:20]])
             self.assertListEqual([i for i in range(10, 20, 2)], [int(x) for x in lines[10:20:2]])
             self.assertListEqual([i for i in range(900)], [int(x) for x in lines[:-100]])
+
+
+class TestRandomLineAccessFileFromKnownIndex(TestRandomLineAccessFile):
+    def setUp(self) -> None:
+        offset = 0
+        lines_offsets = []
+        for i in range(1000):
+            lines_offsets.append(offset)
+            offset += len(str(i))+1
+        self.lines_file = RandomLineAccessFile(file_with_line_numbers, lines_offsets)
+
+
+class TestMemoryMappedRandomLineAccessFileFile(TestRandomLineAccessFile):
+
+    def setUp(self) -> None:
+        self.lines_file = MemoryMappedRandomLineAccessFile(file_with_line_numbers)
+
+
+class TestMutableRandomLineAccessFile(TestRandomLineAccessFile):
+    def setUp(self) -> None:
+        self.lines_file = MutableRandomLineAccessFile(file_with_line_numbers)
+        self.gt = list(str(x) for x in range(1000))
+
+    def tearDown(self) -> None:
+        if os.path.isfile(RES_TMP_FILE):
+            os.remove(RES_TMP_FILE)
+
+    def test_setitem(self):
+        with self.lines_file:
+            self.lines_file[0] = "A"
+            self.gt[0] = "A"
+            self.assertSequenceEqual(self.gt, self.lines_file)
+
+            self.lines_file[2] = "B"
+            self.gt[2] = "B"
+            self.assertSequenceEqual(self.gt, self.lines_file)
+
+    def test_setitem_invalid_value(self):
+        with self.assertRaises(ValueError):
+            self.lines_file[0] = 10
+
+    def test_del(self):
+        with self.lines_file:
+            del self.gt[999]
+            del self.lines_file[999]
+            self.assertSequenceEqual(self.gt, self.lines_file)
+
+            del self.gt[500]
+            del self.lines_file[500]
+            self.assertSequenceEqual(self.gt, self.lines_file)
+
+            del self.gt[0]
+            del self.lines_file[0]
+            self.assertSequenceEqual(self.gt, self.lines_file)
+
+    def test_insert(self):
+        with self.lines_file:
+            self.gt.insert(10, "A")
+            self.lines_file.insert(10, "A")
+            self.assertSequenceEqual(self.gt, self.lines_file)
+
+    def test_insert_after(self):
+        with self.lines_file:
+            self.gt.insert(9999, "A")
+            self.lines_file.insert(9999, "A")
+            self.assertSequenceEqual(self.gt, self.lines_file)
+
+    def test_insert_before(self):
+        with self.lines_file:
+            self.gt.insert(-1, "A")
+            self.lines_file.insert(-1, "A")
+            self.assertSequenceEqual(self.gt, self.lines_file)
+
+    def test_append(self):
+        with self.lines_file:
+            self.gt.append("A")
+            self.lines_file.append("A")
+            self.assertSequenceEqual(self.gt, self.lines_file)
+
+    def test_save(self):
+        out = StringIO()
+        with self.lines_file:
+            self.lines_file.save(out)
+            self.assertEqual("\n".join(self.gt)+"\n", out.getvalue())
+
+    def test_save_path(self):
+        with self.lines_file:
+            self.lines_file.save(RES_TMP_FILE)
+
+        with open(RES_TMP_FILE, "r") as out:
+            self.assertEqual("\n".join(self.gt) + "\n", out.read())
+
+    def test_modified_save(self):
+        out = StringIO()
+        with self.lines_file:
+            self.gt[100] = "A"
+            self.lines_file[100] = "A"
+            self.lines_file.save(out)
+            self.assertEqual("\n".join(self.gt) + "\n", out.getvalue())
+
+    def test_save_with_diff_end(self):
+        out = StringIO()
+        with self.lines_file:
+            self.gt[100] = "A"
+            self.lines_file[100] = "A"
+            self.lines_file.save(out, "\t")
+            self.assertEqual("\t".join(self.gt) + "\t", out.getvalue())
+
+
+class TestMutableMemoryMappedRandomLineAccessFile(TestMutableRandomLineAccessFile):
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.lines_file = MutableMemoryMappedRandomLineAccessFile(file_with_line_numbers)
 
 
 class TestMapAccessFile(unittest.TestCase):
