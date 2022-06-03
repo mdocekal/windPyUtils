@@ -29,9 +29,11 @@ class TestRandomLineAccessFile(unittest.TestCase):
     def test_init(self):
         self.assertEqual(self.lines_file.path_to, file_with_line_numbers)
         self.assertIsNone(self.lines_file.file)
+        self.assertFalse(self.lines_file.dirty)
 
     def test_len(self):
         self.assertEqual(len(self.lines_file), 1000)
+        self.assertFalse(self.lines_file.dirty)
 
     def test_get_line_not_opened(self):
         with self.assertRaises(RuntimeError):
@@ -42,6 +44,7 @@ class TestRandomLineAccessFile(unittest.TestCase):
             res = list(lines)
             gt = [str(i) for i in range(1000)]
             self.assertEqual(gt, res)
+        self.assertFalse(self.lines_file.dirty)
 
     def test_get_line_one_by_one(self):
         indices = [i for i in range(1000)]
@@ -50,6 +53,7 @@ class TestRandomLineAccessFile(unittest.TestCase):
         with self.lines_file as lines:
             for i in indices:
                 self.assertEqual(int(lines[i]), i)
+        self.assertFalse(self.lines_file.dirty)
 
     def test_get_range(self):
         indices = [i for i in range(1000)]
@@ -59,6 +63,7 @@ class TestRandomLineAccessFile(unittest.TestCase):
             self.assertListEqual([i for i in range(10, 20)],  [int(x) for x in lines[10:20]])
             self.assertListEqual([i for i in range(10, 20, 2)], [int(x) for x in lines[10:20:2]])
             self.assertListEqual([i for i in range(900)], [int(x) for x in lines[:-100]])
+        self.assertFalse(self.lines_file.dirty)
 
 
 class TestRandomLineAccessFileFromKnownIndex(TestRandomLineAccessFile):
@@ -88,61 +93,72 @@ class TestMutableRandomLineAccessFile(TestRandomLineAccessFile):
 
     def test_setitem(self):
         with self.lines_file:
+            self.assertFalse(self.lines_file.dirty)
             self.lines_file[0] = "A"
+            self.assertTrue(self.lines_file.dirty)
             self.gt[0] = "A"
             self.assertSequenceEqual(self.gt, self.lines_file)
 
             self.lines_file[2] = "B"
             self.gt[2] = "B"
             self.assertSequenceEqual(self.gt, self.lines_file)
+            self.assertTrue(self.lines_file.dirty)
 
     def test_setitem_invalid_value(self):
         with self.assertRaises(ValueError):
+            self.assertFalse(self.lines_file.dirty)
             self.lines_file[0] = 10
+            self.assertFalse(self.lines_file.dirty)
 
     def test_del(self):
         with self.lines_file:
             del self.gt[999]
             del self.lines_file[999]
             self.assertSequenceEqual(self.gt, self.lines_file)
-
+            self.assertTrue(self.lines_file.dirty)
             del self.gt[500]
             del self.lines_file[500]
             self.assertSequenceEqual(self.gt, self.lines_file)
-
+            self.assertTrue(self.lines_file.dirty)
             del self.gt[0]
             del self.lines_file[0]
             self.assertSequenceEqual(self.gt, self.lines_file)
+            self.assertTrue(self.lines_file.dirty)
 
     def test_insert(self):
         with self.lines_file:
             self.gt.insert(10, "A")
             self.lines_file.insert(10, "A")
             self.assertSequenceEqual(self.gt, self.lines_file)
+            self.assertTrue(self.lines_file.dirty)
 
     def test_insert_after(self):
         with self.lines_file:
             self.gt.insert(9999, "A")
             self.lines_file.insert(9999, "A")
             self.assertSequenceEqual(self.gt, self.lines_file)
+            self.assertTrue(self.lines_file.dirty)
 
     def test_insert_before(self):
         with self.lines_file:
             self.gt.insert(-1, "A")
             self.lines_file.insert(-1, "A")
             self.assertSequenceEqual(self.gt, self.lines_file)
+            self.assertTrue(self.lines_file.dirty)
 
     def test_append(self):
         with self.lines_file:
             self.gt.append("A")
             self.lines_file.append("A")
             self.assertSequenceEqual(self.gt, self.lines_file)
+            self.assertTrue(self.lines_file.dirty)
 
     def test_save(self):
         out = StringIO()
         with self.lines_file:
             self.lines_file.save(out)
             self.assertEqual("\n".join(self.gt)+"\n", out.getvalue())
+            self.assertFalse(self.lines_file.dirty)
 
     def test_save_path(self):
         with self.lines_file:
@@ -158,6 +174,7 @@ class TestMutableRandomLineAccessFile(TestRandomLineAccessFile):
             self.lines_file[100] = "A"
             self.lines_file.save(out)
             self.assertEqual("\n".join(self.gt) + "\n", out.getvalue())
+            self.assertTrue(self.lines_file.dirty)
 
     def test_save_with_diff_end(self):
         out = StringIO()
@@ -166,6 +183,7 @@ class TestMutableRandomLineAccessFile(TestRandomLineAccessFile):
             self.lines_file[100] = "A"
             self.lines_file.save(out, "\t")
             self.assertEqual("\t".join(self.gt) + "\t", out.getvalue())
+            self.assertTrue(self.lines_file.dirty)
 
 
 class TestMutableMemoryMappedRandomLineAccessFile(TestMutableRandomLineAccessFile):

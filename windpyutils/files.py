@@ -25,7 +25,15 @@ class BaseRandomLineAccessFile(ABC):
         :param path_to: path to file
         """
         self.path_to = path_to
+        self._dirty = False
         self._lines: MutableSequence[Union[int, str]] = []    # it may contain line offsets or line contents
+
+    @property
+    def dirty(self) -> bool:
+        """
+        True means that the content differs from the one that is in original file.
+        """
+        return self._dirty
 
     def __enter__(self):
         self.open()
@@ -50,8 +58,23 @@ class BaseRandomLineAccessFile(ABC):
         if self.closed:
             raise RuntimeError("Firstly open the file.")
 
-        for n in range(len(self)):
-            yield self._get_item(n)
+        if self._dirty:
+            for n in range(len(self)):
+                yield self._get_item(n)
+        else:
+            self._file_seek(0)
+            for n in range(len(self)):
+                yield self._read_next_line()
+
+    @abstractmethod
+    def _file_seek(self, offset: int):
+        """
+        changes file offset
+
+        :param offset: new offset
+        :return:
+        """
+        pass
 
     @abstractmethod
     def open(self) -> "BaseRandomLineAccessFile":
@@ -197,6 +220,9 @@ class RandomLineAccessFile(BaseRandomLineAccessFile):
     def closed(self) -> bool:
         return self.file is None
 
+    def _file_seek(self, offset: int):
+        self.file.seek(offset)
+
     def _read_line(self, n: int) -> str:
         self.file.seek(self._lines[n])
         return self._read_next_line()
@@ -221,6 +247,9 @@ class MemoryMappedRandomLineAccessFile(RandomLineAccessFile):
             self.mm.close()
             self.file.close()
             self.file = None
+
+    def _file_seek(self, offset: int):
+        self.mm.seek(offset)
 
     def _read_line(self, n: int) -> str:
         self.mm.seek(self._lines[n])
@@ -266,7 +295,7 @@ class BaseMutableRandomLineAccessFile(BaseRandomLineAccessFile, collections.abc.
         """
         if not isinstance(content, str):
             raise ValueError("You can set only string content.")
-
+        self._dirty = True
         self._lines[i] = content
 
     def __delitem__(self, n: int):
@@ -275,6 +304,7 @@ class BaseMutableRandomLineAccessFile(BaseRandomLineAccessFile, collections.abc.
 
         :param n: index of line
         """
+        self._dirty = True
         del self._lines[n]
 
     def insert(self, index: int, content: str):
@@ -289,7 +319,7 @@ class BaseMutableRandomLineAccessFile(BaseRandomLineAccessFile, collections.abc.
         """
         if not isinstance(content, str):
             raise ValueError("You can insert only string content.")
-
+        self._dirty = True
         self._lines.insert(index, content)
 
     def save(self, out: Union[str, TextIO], line_ending: str = "\n"):
