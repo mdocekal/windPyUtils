@@ -10,7 +10,7 @@ import csv
 import mmap
 from abc import ABC, abstractmethod
 from contextlib import nullcontext
-from typing import Union, Dict, Any, Type, List, Optional, Sequence, MutableSequence, TextIO
+from typing import Union, Dict, Any, Type, List, Optional, Sequence, MutableSequence, TextIO, Generator
 
 
 class BaseRandomLineAccessFile(ABC):
@@ -41,6 +41,17 @@ class BaseRandomLineAccessFile(ABC):
         :return: Number of lines in the file.
         """
         return len(self._lines)
+
+    def __iter__(self) -> Generator[str, None, None]:
+        """
+        sequence iteration over whole file
+        :return: generator of lines
+        """
+        if self.closed:
+            raise RuntimeError("Firstly open the file.")
+
+        for n in range(len(self)):
+            yield self._get_item(n)
 
     @abstractmethod
     def open(self) -> "BaseRandomLineAccessFile":
@@ -101,6 +112,15 @@ class BaseRandomLineAccessFile(ABC):
 
         :param n: line index
         :return: n-th line
+        """
+        pass
+
+    @abstractmethod
+    def _read_next_line(self) -> str:
+        """
+        Reads next line in file.
+
+        :return: next line
         """
         pass
 
@@ -179,6 +199,9 @@ class RandomLineAccessFile(BaseRandomLineAccessFile):
 
     def _read_line(self, n: int) -> str:
         self.file.seek(self._lines[n])
+        return self._read_next_line()
+
+    def _read_next_line(self) -> str:
         return self.file.readline().rstrip("\n")
 
 
@@ -201,6 +224,9 @@ class MemoryMappedRandomLineAccessFile(RandomLineAccessFile):
 
     def _read_line(self, n: int) -> str:
         self.mm.seek(self._lines[n])
+        return self._read_next_line()
+
+    def _read_next_line(self) -> str:
         return self.mm.readline().decode().rstrip("\n")
 
 
@@ -314,6 +340,7 @@ class MutableMemoryMappedRandomLineAccessFile(BaseMutableRandomLineAccessFile, M
         "New line content"
         >>>    file.save("results.txt")
     """
+
     pass
 
 

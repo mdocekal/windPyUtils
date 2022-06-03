@@ -37,6 +37,12 @@ class TestRandomLineAccessFile(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             _ = self.lines_file[0]
 
+    def test_seq_iter(self):
+        with self.lines_file as lines:
+            res = list(lines)
+            gt = [str(i) for i in range(1000)]
+            self.assertEqual(gt, res)
+
     def test_get_line_one_by_one(self):
         indices = [i for i in range(1000)]
         random.shuffle(indices)
