@@ -142,5 +142,34 @@ class TestBatcher(unittest.TestCase):
             _ = batcher[2]
 
 
+class TestBatcherIter(unittest.TestCase):
+
+    def test_single_bigger_batch(self):
+        batcher = Batcher([1, 2, 3, 4, 5], 10)
+        self.assertListEqual([[1, 2, 3, 4, 5]], list(batcher))
+
+    def test_single_invalid_batch_size(self):
+        with self.assertRaises(ValueError):
+            Batcher([1, 2, 3, 4, 5], 0)
+
+    def test_single_non_divisible_by_batch_size(self):
+        batcher = Batcher([1, 2, 3, 4, 5], 3)
+
+        self.assertListEqual([[1, 2, 3], [4, 5]], list(batcher))
+
+    def test_single_divisible_by_batch_size(self):
+        batcher = Batcher([1, 2, 3, 4, 5, 6], 3)
+        self.assertListEqual([[1, 2, 3], [4, 5, 6]], list(batcher))
+
+    def test_multi_with_different_length(self):
+        with self.assertRaises(ValueError):
+            _ = list(Batcher(([1, 2, 3, 4, 5, 6], [1, 2]), 3))
+
+    def test_multi(self):
+        batcher = Batcher(([1, 2, 3, 4], ["a", "b", "c", "d"]), 2)
+
+        self.assertListEqual([([1, 2], ["a", "b"]), ([3, 4], ["c", "d"])], list(batcher))
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -6,7 +6,7 @@ This module contains generic utils
 :author:     Martin Dočekal
 """
 import math
-from typing import Sequence, List, Tuple, Iterable, Union, Any
+from typing import Sequence, List, Tuple, Iterable, Union, Any, Generator
 
 
 def get_all_subclasses(cls):
@@ -186,3 +186,56 @@ class Batcher:
             return tuple(x[offset:offset + self.batch_size] for x in self.data)
         else:
             return self.data[offset:offset + self.batch_size]
+
+
+class BatcherIter:
+    """
+    Allows batching of iterables
+    """
+
+    def __init__(self, batchify_data: Union[Iterable[Any], Tuple[Iterable[Any], ...]], batch_size: int):
+        """
+        Initialization of batcher.
+
+        :param batchify_data: data that should be batchified
+            it could be a single iterable or tuple of iterables
+            in case it is a tuple of iterables batcher will return a batch for every iterable in tuple
+        :param batch_size:
+        :raise ValueError: when the batch size is invalid
+        """
+
+        if batch_size <= 0:
+            raise ValueError("Batch size must be positive integer.")
+
+        self.data = batchify_data
+        self.batch_size = batch_size
+
+    def __iter__(self) -> Generator[Union[List[Any], Tuple[List[Any], ...]], None, None]:
+        """
+        generates batches
+
+        :return: generator of batches
+        """
+
+        if isinstance(self.data, tuple):
+            batch = tuple([] for _ in range(len(self.data)))
+            for x in zip(*self.data):
+                for i, s in enumerate(x):
+                    batch[i].append(s)
+                if len(batch[0]) == self.batch_size:
+                    yield batch
+                    batch = tuple([] for _ in range(len(self.data)))
+
+            if len(batch[0]) > 0:
+                yield batch
+
+        else:
+            batch = []
+            for x in self.data:
+                batch.append(x)
+                if len(batch[0]) == self.batch_size:
+                    yield batch
+                    batch = []
+
+            if len(batch) > 0:
+                yield batch
