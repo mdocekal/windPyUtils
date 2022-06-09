@@ -6,7 +6,7 @@ Created on 31.01.20
 """
 import itertools
 import unittest
-from windpyutils.generic import sub_seq, RoundSequence, search_sub_seq, compare_pos_in_iterables, Batcher
+from windpyutils.generic import sub_seq, RoundSequence, search_sub_seq, compare_pos_in_iterables, Batcher, BatcherIter
 
 
 class TestSubSeq(unittest.TestCase):
@@ -145,28 +145,24 @@ class TestBatcher(unittest.TestCase):
 class TestBatcherIter(unittest.TestCase):
 
     def test_single_bigger_batch(self):
-        batcher = Batcher([1, 2, 3, 4, 5], 10)
+        batcher = BatcherIter([1, 2, 3, 4, 5], 10)
         self.assertListEqual([[1, 2, 3, 4, 5]], list(batcher))
 
     def test_single_invalid_batch_size(self):
         with self.assertRaises(ValueError):
-            Batcher([1, 2, 3, 4, 5], 0)
+            BatcherIter([1, 2, 3, 4, 5], 0)
 
     def test_single_non_divisible_by_batch_size(self):
-        batcher = Batcher([1, 2, 3, 4, 5], 3)
+        batcher = BatcherIter([1, 2, 3, 4, 5], 3)
 
         self.assertListEqual([[1, 2, 3], [4, 5]], list(batcher))
 
     def test_single_divisible_by_batch_size(self):
-        batcher = Batcher([1, 2, 3, 4, 5, 6], 3)
+        batcher = BatcherIter([1, 2, 3, 4, 5, 6], 3)
         self.assertListEqual([[1, 2, 3], [4, 5, 6]], list(batcher))
 
-    def test_multi_with_different_length(self):
-        with self.assertRaises(ValueError):
-            _ = list(Batcher(([1, 2, 3, 4, 5, 6], [1, 2]), 3))
-
     def test_multi(self):
-        batcher = Batcher(([1, 2, 3, 4], ["a", "b", "c", "d"]), 2)
+        batcher = BatcherIter(([1, 2, 3, 4], ["a", "b", "c", "d"]), 2)
 
         self.assertListEqual([([1, 2], ["a", "b"]), ([3, 4], ["c", "d"])], list(batcher))
 

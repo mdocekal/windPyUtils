@@ -200,6 +200,7 @@ class BatcherIter:
         :param batchify_data: data that should be batchified
             it could be a single iterable or tuple of iterables
             in case it is a tuple of iterables batcher will return a batch for every iterable in tuple
+                the iteration is stopped when the shortest iterator is finished
         :param batch_size:
         :raise ValueError: when the batch size is invalid
         """
@@ -233,7 +234,7 @@ class BatcherIter:
             batch = []
             for x in self.data:
                 batch.append(x)
-                if len(batch[0]) == self.batch_size:
+                if len(batch) == self.batch_size:
                     yield batch
                     batch = []
 
