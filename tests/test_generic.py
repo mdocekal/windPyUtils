@@ -180,6 +180,7 @@ class TestRoman2Int(unittest.TestCase):
 
     def test_multiple_letters(self):
         self.assertEqual(4, roman_2_int("IV"))
+        self.assertEqual(990, roman_2_int("CMXC"))
         self.assertEqual(4, roman_2_int("IIII"))
         self.assertEqual(39, roman_2_int("XXXIX"))
         self.assertEqual(246, roman_2_int("CCXLVI"))
@@ -203,6 +204,7 @@ class TestInt2Roman(unittest.TestCase):
 
     def test_multiple_letters(self):
         self.assertEqual("IV", int_2_roman(4))
+        self.assertEqual("CMXC", int_2_roman(990))
         self.assertEqual("XXXIX", int_2_roman(39))
         self.assertEqual("CCXLVI", int_2_roman(246))
         self.assertEqual("DCCLXXXIX", int_2_roman(789))
