@@ -6,7 +6,8 @@ Created on 31.01.20
 """
 import itertools
 import unittest
-from windpyutils.generic import sub_seq, RoundSequence, search_sub_seq, compare_pos_in_iterables, Batcher, BatcherIter
+from windpyutils.generic import sub_seq, RoundSequence, search_sub_seq, compare_pos_in_iterables, Batcher, BatcherIter, \
+    roman_2_int, int_2_roman
 
 
 class TestSubSeq(unittest.TestCase):
@@ -165,6 +166,51 @@ class TestBatcherIter(unittest.TestCase):
         batcher = BatcherIter(([1, 2, 3, 4], ["a", "b", "c", "d"]), 2)
 
         self.assertListEqual([([1, 2], ["a", "b"]), ([3, 4], ["c", "d"])], list(batcher))
+
+
+class TestRoman2Int(unittest.TestCase):
+    def test_single_letters(self):
+        self.assertEqual(1, roman_2_int("I"))
+        self.assertEqual(5, roman_2_int("V"))
+        self.assertEqual(10, roman_2_int("X"))
+        self.assertEqual(50, roman_2_int("L"))
+        self.assertEqual(100, roman_2_int("C"))
+        self.assertEqual(500, roman_2_int("D"))
+        self.assertEqual(1000, roman_2_int("M"))
+
+    def test_multiple_letters(self):
+        self.assertEqual(4, roman_2_int("IV"))
+        self.assertEqual(4, roman_2_int("IIII"))
+        self.assertEqual(39, roman_2_int("XXXIX"))
+        self.assertEqual(246, roman_2_int("CCXLVI"))
+        self.assertEqual(789, roman_2_int("DCCLXXXIX"))
+        self.assertEqual(2421, roman_2_int("MMCDXXI"))
+        self.assertEqual(160, roman_2_int("CLX"))
+        self.assertEqual(207, roman_2_int("CCVII"))
+        self.assertEqual(1009, roman_2_int("MIX"))
+        self.assertEqual(1066, roman_2_int("MLXVI"))
+
+
+class TestInt2Roman(unittest.TestCase):
+    def test_single_letters(self):
+        self.assertEqual("I", int_2_roman(1))
+        self.assertEqual("V", int_2_roman(5))
+        self.assertEqual("X", int_2_roman(10))
+        self.assertEqual("L", int_2_roman(50))
+        self.assertEqual("C", int_2_roman(100))
+        self.assertEqual("D", int_2_roman(500))
+        self.assertEqual("M", int_2_roman(1000))
+
+    def test_multiple_letters(self):
+        self.assertEqual("IV", int_2_roman(4))
+        self.assertEqual("XXXIX", int_2_roman(39))
+        self.assertEqual("CCXLVI", int_2_roman(246))
+        self.assertEqual("DCCLXXXIX", int_2_roman(789))
+        self.assertEqual("MMCDXXI", int_2_roman(2421))
+        self.assertEqual("CLX", int_2_roman(160))
+        self.assertEqual("CCVII", int_2_roman(207))
+        self.assertEqual("MIX", int_2_roman(1009))
+        self.assertEqual("MLXVI", int_2_roman(1066))
 
 
 if __name__ == '__main__':

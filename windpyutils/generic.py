@@ -240,3 +240,34 @@ class BatcherIter:
 
             if len(batch) > 0:
                 yield batch
+
+
+def roman_2_int(n: str) -> int:
+    """
+    Converts roman number to integer.
+
+    :param n: roman number
+    :return: integer representation
+    """
+
+    conv_table = {'I': 1, 'V': 5, 'X': 10, 'L': 50, 'C': 100, 'D': 500, 'M': 1000}
+    c = [conv_table[x] for x in n]
+    return sum(-x if i < len(n) - 1 and x < c[i + 1] else x for i, x in enumerate(c))
+
+
+def int_2_roman(n: int) -> str:
+    """
+    Converts integer to roman number.
+
+    :param n: integer
+    :return: roman number representation
+    """
+
+    def gen(remainder):
+        for v, r in [(1000, 'M'), (900, 'CM'), (500, 'D'), (400, 'CD'), (100, 'C'), (90, 'XC'), (50, 'L'), (40, 'XL'),
+                     (10, 'X'), (9, 'IX'), (5, 'V'), (4, 'IV'), (1, 'I')]:
+            times, remainder = divmod(remainder, v)
+            yield r*times
+            if remainder == 0:
+                break
+    return "".join(gen(n))
