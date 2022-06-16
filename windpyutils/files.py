@@ -8,6 +8,7 @@ Utils for work with files.
 import collections.abc
 import csv
 import mmap
+import os
 from abc import ABC, abstractmethod
 from contextlib import nullcontext
 from typing import Union, Dict, Any, Type, List, Optional, Sequence, MutableSequence, TextIO, Generator
@@ -161,6 +162,8 @@ class RandomLineAccessFile(BaseRandomLineAccessFile):
             print(lines[150])
             print(lines[0])
 
+    supports multi-processing
+
     :ivar path_to: path to file
     :vartype path_to: str
     :ivar file: file descriptor
@@ -181,6 +184,7 @@ class RandomLineAccessFile(BaseRandomLineAccessFile):
         self._lines = line_offsets
         if line_offsets is None:
             self._index_file()
+        self._opened_in_process_with_id = None
 
     def _index_file(self):
         """
@@ -205,6 +209,8 @@ class RandomLineAccessFile(BaseRandomLineAccessFile):
 
         if self.file is None:
             self.file = open(self.path_to, "r")
+            self._opened_in_process_with_id = os.getpid()
+
         return self
 
     def close(self):
@@ -215,19 +221,32 @@ class RandomLineAccessFile(BaseRandomLineAccessFile):
         if self.file is not None:
             self.file.close()
             self.file = None
+            self._opened_in_process_with_id = None
+
+    def _reopen_if_needed(self):
+        """
+        Reopens itself if the multiprocessing is activated and this dataset was opened in parent process.
+        """
+
+        if self._opened_in_process_with_id is not None and os.getpid() != self._opened_in_process_with_id:
+            # we don't want to open it when the file was not open yet to prevent accidental open
+            self.close()
+            self.open()
 
     @property
     def closed(self) -> bool:
         return self.file is None
 
     def _file_seek(self, offset: int):
+        self._reopen_if_needed()
         self.file.seek(offset)
 
     def _read_line(self, n: int) -> str:
-        self.file.seek(self._lines[n])
+        self._file_seek(self._lines[n])
         return self._read_next_line()
 
     def _read_next_line(self) -> str:
+        self._reopen_if_needed()
         return self.file.readline().rstrip("\n")
 
 
@@ -240,6 +259,7 @@ class MemoryMappedRandomLineAccessFile(RandomLineAccessFile):
         if self.file is None:
             self.file = open(self.path_to, "rb")
             self.mm = mmap.mmap(self.file.fileno(), 0, access=mmap.ACCESS_READ)
+            self._opened_in_process_with_id = os.getpid()
         return self
 
     def close(self):
@@ -247,15 +267,18 @@ class MemoryMappedRandomLineAccessFile(RandomLineAccessFile):
             self.mm.close()
             self.file.close()
             self.file = None
+            self._opened_in_process_with_id = None
 
     def _file_seek(self, offset: int):
+        self._reopen_if_needed()
         self.mm.seek(offset)
 
     def _read_line(self, n: int) -> str:
-        self.mm.seek(self._lines[n])
+        self._file_seek(self._lines[n])
         return self._read_next_line()
 
     def _read_next_line(self) -> str:
+        self._reopen_if_needed()
         return self.mm.readline().decode().rstrip("\n")
 
 
@@ -352,6 +375,8 @@ class MutableRandomLineAccessFile(BaseMutableRandomLineAccessFile, RandomLineAcc
         >>>    print(file[1])
         "New line content"
         >>>    file.save("results.txt")
+
+    multiprocessing is NOT supported
     """
     pass
 
@@ -369,6 +394,8 @@ class MutableMemoryMappedRandomLineAccessFile(BaseMutableRandomLineAccessFile, M
         >>>    print(file[1])
         "New line content"
         >>>    file.save("results.txt")
+
+    multiprocessing is NOT supported
     """
 
     pass
@@ -386,6 +413,8 @@ class MapAccessFile:
     Example with index file containing previous dict in tsv:
         >>>with MapAccessFile("example.txt", "example.index") as map_file:
         >>>    print(map_file["car"])
+
+    multiprocessing is supported
 
     :ivar path_to: path to file
     :vartype path_to: str
@@ -413,6 +442,7 @@ class MapAccessFile:
         self.path_to = path_to
         self.file = None
         self.mapping = self.load_mapping(mapping, key_type) if isinstance(mapping, str) else mapping
+        self._opened_in_process_with_id = None
 
     @staticmethod
     def load_mapping(p: str, t: Type = str) -> Dict[Any, int]:
@@ -455,6 +485,7 @@ class MapAccessFile:
 
         if self.file is None:
             self.file = open(self.path_to, "r")
+            self._opened_in_process_with_id = os.getpid()
         return self
 
     def close(self):
@@ -465,6 +496,17 @@ class MapAccessFile:
         if self.file is not None:
             self.file.close()
             self.file = None
+            self._opened_in_process_with_id = None
+
+    def _reopen_if_needed(self):
+        """
+        Reopens itself if the multiprocessing is activated and this dataset was opened in parent process.
+        """
+
+        if self._opened_in_process_with_id is not None and os.getpid() != self._opened_in_process_with_id:
+            # we don't want to open it when the file was not open yet to prevent accidental open
+            self.close()
+            self.open()
 
     def __getitem__(self, k) -> str:
         """
@@ -476,6 +518,6 @@ class MapAccessFile:
         """
         if self.file is None:
             raise RuntimeError("Firstly open the file.")
-
+        self._reopen_if_needed()
         self.file.seek(self.mapping[k])
         return self.file.readline()
