@@ -296,6 +296,13 @@ class TestTmpPool(TestCase):
             for _ in range(10):
                 paths.append(pool.create())
                 self.assertTrue(os.path.isfile(paths[-1]))
+
+            self.assertEqual(10, len(pool))
+            self.assertSequenceEqual(paths, list(pool))
+
+        self.assertEqual(0, len(pool))
+        self.assertSequenceEqual([], list(pool))
+
         for p in paths:
             self.assertFalse(os.path.isfile(p))
 

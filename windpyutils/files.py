@@ -549,6 +549,18 @@ class TmpPool:
         if multi_proc:
             self._manager = multiprocessing.Manager()
 
+    def __len__(self):
+        return len(self._created_files)
+    
+    def __getitem__(self, item) -> str:
+        """
+        Path to tmp file.
+
+        :param item: index of tmp file.
+        :return: path to tmp file
+        """
+        return self._created_files[item]
+
     def __enter__(self):
         if self._multi_proc:
             self._manager = multiprocessing.Manager().__enter__()
