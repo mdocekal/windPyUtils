@@ -8,7 +8,9 @@ Utils for work with files.
 import collections.abc
 import csv
 import mmap
+import multiprocessing
 import os
+import tempfile
 from abc import ABC, abstractmethod
 from contextlib import nullcontext
 from typing import Union, Dict, Any, Type, List, Optional, Sequence, MutableSequence, TextIO, Generator
@@ -521,3 +523,75 @@ class MapAccessFile:
         self._reopen_if_needed()
         self.file.seek(self.mapping[k])
         return self.file.readline()
+
+
+class TmpPool:
+    """
+    Structure for managing tmp files.
+
+    Example:
+        >>> with TmpPool() as pool:
+        >>>    pool.create()
+        path to created tmp file
+    """
+
+    def __init__(self, d: Optional[str] = None, multi_proc: bool = False):
+        """
+        initializes pool
+        :param d: directory where the tmp files will be created or the dafault is used
+        :param multi_proc: Pass true if you want to use that with multiple processes
+        """
+
+        self._d = d
+        self._created_files = []
+        self._multi_proc = multi_proc
+        self._manager = None
+        if multi_proc:
+            self._manager = multiprocessing.Manager()
+
+    def __enter__(self):
+        if self._multi_proc:
+            self._manager = multiprocessing.Manager().__enter__()
+            self._created_files = self._manager.list()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.flush()
+        if self._manager is not None:
+            self._manager.__exit__(None, None, None)
+
+    def create(self) -> str:
+        """
+        Create tmp file.
+        :return: Path to tmp file
+        """
+        tmp = tempfile.NamedTemporaryFile(delete=False, dir=self._d)
+        tmp.close()
+        self._created_files.append(tmp.name)
+        return tmp.name
+
+    def remove(self, p: str):
+        """
+        Removes file from file system and also from its pool.
+        :param p: path to tmp file
+        """
+        try:
+            os.remove(p)
+        except FileNotFoundError:
+            # already removed
+            pass
+
+        self._created_files.remove(p)
+
+    def flush(self):
+        """
+        Removes all created files from this pool and also the file system.
+        """
+        for p in self._created_files:
+            try:
+                os.remove(p)
+            except FileNotFoundError:
+                # already removed
+                pass
+
+        self._created_files = self._manager.list() if self._multi_proc else []

@@ -10,16 +10,19 @@ import os
 import random
 import unittest
 from io import StringIO
+from pathlib import Path
+from unittest import TestCase
 
 from windpyutils.files import RandomLineAccessFile, MapAccessFile, MemoryMappedRandomLineAccessFile, \
-    MutableRandomLineAccessFile, MutableMemoryMappedRandomLineAccessFile
-from windpyutils.parallel.own_proc_pools import FunctorWorker, FunctorPool
+    MutableRandomLineAccessFile, MutableMemoryMappedRandomLineAccessFile, TmpPool
+from windpyutils.parallel.own_proc_pools import FunctorWorker, FunctorPool, T, R
 
 path_to_this_script_file = os.path.dirname(os.path.realpath(__file__))
 file_with_line_numbers = os.path.join(path_to_this_script_file, "fixtures/file_with_line_numbers.txt")
 file_with_mapping = os.path.join(path_to_this_script_file, "fixtures/mapped_file.txt")
 file_with_mapping_index = os.path.join(path_to_this_script_file, "fixtures/mapped_file.index")
 
+TMP_DIR = os.path.join(path_to_this_script_file, "tmp")
 RES_TMP_FILE = os.path.join(path_to_this_script_file, "tmp/res.txt")
 
 
@@ -284,6 +287,85 @@ class TestMapAccessFile(unittest.TestCase):
         mapped_file = MapAccessFile(file_with_mapping, file_with_mapping_index, key_type=int)
         with self.assertRaises(RuntimeError):
             _ = mapped_file[0]
+
+
+class TestTmpPool(TestCase):
+    def test_create(self):
+        paths = []
+        with TmpPool() as pool:
+            for _ in range(10):
+                paths.append(pool.create())
+                self.assertTrue(os.path.isfile(paths[-1]))
+        for p in paths:
+            self.assertFalse(os.path.isfile(p))
+
+    def test_create_given_dir(self):
+        paths = []
+        with TmpPool(TMP_DIR) as pool:
+            for _ in range(10):
+                paths.append(pool.create())
+                self.assertTrue(os.path.isfile(paths[-1]))
+                self.assertTrue(str(Path(paths[-1]).parent.resolve()) == TMP_DIR)
+        for p in paths:
+            self.assertFalse(os.path.isfile(p))
+
+    def test_remove(self):
+        with TmpPool() as pool:
+            for _ in range(10):
+                p = pool.create()
+                pool.remove(p)
+                self.assertFalse(os.path.isfile(p))
+
+    def test_flush(self):
+        paths = []
+        with TmpPool() as pool:
+            for _ in range(10):
+                paths.append(pool.create())
+            pool.flush()
+            for p in paths:
+                self.assertFalse(os.path.isfile(p))
+
+
+class CreateTmpFileWorker(FunctorWorker):
+    def __init__(self, pool: TmpPool):
+        super().__init__()
+        self.pool = pool
+
+    def __call__(self, inp: None) -> str:
+        return self.pool.create()
+
+
+class TestTmpPoolMultProc(TestCase):
+    def test_create(self):
+        if multiprocessing.cpu_count() <= 1:
+            self.skipTest("Not enough cpus.")
+        paths = []
+
+        with TmpPool(multi_proc=True) as pool, \
+                FunctorPool([CreateTmpFileWorker(pool) for _ in range(multiprocessing.cpu_count())]) as proc_pool:
+            for p in proc_pool.imap(None for _ in range(multiprocessing.cpu_count())):
+                paths.append(p)
+                self.assertTrue(os.path.isfile(p))
+
+        for p in paths:
+            self.assertFalse(os.path.isfile(p))
+
+    def test_remove(self):
+        with TmpPool(multi_proc=True) as pool, \
+                FunctorPool([CreateTmpFileWorker(pool) for _ in range(multiprocessing.cpu_count())]) as proc_pool:
+            for p in proc_pool.imap(None for _ in range(multiprocessing.cpu_count())):
+                pool.remove(p)
+                self.assertFalse(os.path.isfile(p))
+
+    def test_flush(self):
+        paths = []
+        with TmpPool(multi_proc=True) as pool, \
+                FunctorPool([CreateTmpFileWorker(pool) for _ in range(multiprocessing.cpu_count())]) as proc_pool:
+            for p in proc_pool.imap(None for _ in range(multiprocessing.cpu_count())):
+                paths.append(p)
+            pool.flush()
+            for p in paths:
+                self.assertFalse(os.path.isfile(p))
 
 
 if __name__ == '__main__':
