@@ -38,6 +38,15 @@ class GetLineFunctorWorker(FunctorWorker):
         return int(self.lines[i])
 
 
+class GetRecordWorker(FunctorWorker):
+    def __init__(self, records):
+        super().__init__()
+        self.records = records
+
+    def __call__(self, i):
+        return self.records[i]
+
+
 class TestRandomLineAccessFile(unittest.TestCase):
 
     def setUp(self) -> None:
@@ -115,7 +124,7 @@ class TestRandomLineAccessFileFromKnownIndex(TestRandomLineAccessFile):
         self.lines_file = RandomLineAccessFile(file_with_line_numbers, lines_offsets)
 
 
-class TestMemoryMappedRandomLineAccessFileFile(TestRandomLineAccessFile):
+class TestMemoryMappedRandomLineAccessFile(TestRandomLineAccessFile):
 
     def setUp(self) -> None:
         self.lines_file = MemoryMappedRandomLineAccessFile(file_with_line_numbers)
@@ -442,13 +451,27 @@ class TestRecordFile(unittest.TestCase):
             self.assertSequenceEqual(gt, res)
         self.assertTrue(self.record_file.dirty)
 
-    def test_get_line_one_by_one(self):
+    def test_get_line_one_by_one_randomly(self):
         indices = [i for i in range(1000)]
         random.shuffle(indices)
 
         with self.record_file as lines:
             for i in indices:
                 self.assertEqual(IntRecord(i), lines[i])
+        self.assertTrue(self.record_file.dirty)
+
+    def test_get_line_one_by_one_randomly_multiprocessing(self):
+        if multiprocessing.cpu_count() <= 1:
+            self.skipTest("Skipping test as there is not enough cpus.")
+            return
+
+        indices = [i for i in range(1000)]
+        random.shuffle(indices)
+
+        with self.record_file as records:
+            with FunctorPool([GetRecordWorker(records) for _ in range(multiprocessing.cpu_count())]) as pool:
+                for gt, res in zip(indices, pool.imap(indices)):
+                    self.assertEqual(IntRecord(gt), res)
         self.assertTrue(self.record_file.dirty)
 
     def test_get_range(self):
