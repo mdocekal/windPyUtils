@@ -512,7 +512,7 @@ class TestMemoryMappedRecordFile(TestRecordFile):
 
 class TestMutableRecordFile(TestRecordFile):
     def setUp(self) -> None:
-        self.record_file = MutableRecordFile(file_with_line_numbers, IntRecord)
+        self.record_file = MutableRecordFile[IntRecord](file_with_line_numbers, IntRecord)
         self.gt = list(IntRecord(x) for x in range(1000))
 
     def tearDown(self) -> None:

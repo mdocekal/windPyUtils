@@ -474,13 +474,16 @@ class JsonRecord(Record, ABC):
         return json.dumps(asdict(self), separators=(',', ':'))
 
 
-class BaseRecordFile(BaseRandomLineAccessFile[Record], ABC):
+R = TypeVar('R', bound=Record)  # type of record content
+
+
+class BaseRecordFile(BaseRandomLineAccessFile[Record], Generic[R], ABC):
     """
     Base class for record files that acts like a sequence. It allows direct reading/writing of structured data
     (records).
     """
 
-    def __init__(self, path_to: str, record_class: Type[Record],
+    def __init__(self, path_to: str, record_class: Type[R],
                  lines: Optional[MutableSequence[Union[int, str]]] = None):
         """
         initialization
@@ -495,7 +498,7 @@ class BaseRecordFile(BaseRandomLineAccessFile[Record], ABC):
         self._dirty = True
         self.record_class = record_class
 
-    def _get_item(self, n: int) -> Record:
+    def _get_item(self, n: int) -> R:
         """
         Determines whether the n-th line should be read from file or memory and returns it.
 
@@ -512,7 +515,7 @@ class BaseMutableRecordFile(BaseRecordFile, BaseMutableRandomLineAccessFile, ABC
     (records).
     """
 
-    def __setitem__(self, i: int, r: Record):
+    def __setitem__(self, i: int, r: R):
         """
         change n-th line
 
@@ -521,12 +524,12 @@ class BaseMutableRecordFile(BaseRecordFile, BaseMutableRandomLineAccessFile, ABC
         :raise IndexError: When the key is invalid
         :raise ValueError: when invalid content is provided
         """
-        if not isinstance(r, Record):
+        if not isinstance(r, self.record_class):
             raise ValueError("You can set only Record.")
 
         super().__setitem__(i, r.save())
 
-    def insert(self, index: int, content: Record):
+    def insert(self, index: int, content: R):
         """
         insert new line at specified index
 
@@ -534,7 +537,7 @@ class BaseMutableRecordFile(BaseRecordFile, BaseMutableRandomLineAccessFile, ABC
         :param content: record
         :raise ValueError: when invalid content is provided
         """
-        if not isinstance(content, Record):
+        if not isinstance(content, self.record_class):
             raise ValueError("You can set only Record.")
 
         super().insert(index, content.save())
@@ -555,7 +558,7 @@ class BaseMutableRecordFile(BaseRecordFile, BaseMutableRandomLineAccessFile, ABC
         )
 
 
-class RecordFile(BaseRecordFile, RandomLineAccessFile):
+class RecordFile(BaseRecordFile, RandomLineAccessFile, Generic[R]):
     """
     Record file that acts like sequence. It allows direct reading of structured data (records).
 
@@ -568,7 +571,7 @@ class RecordFile(BaseRecordFile, RandomLineAccessFile):
     pass
 
 
-class MutableRecordFile(BaseMutableRecordFile, MutableRandomLineAccessFile):
+class MutableRecordFile(BaseMutableRecordFile, MutableRandomLineAccessFile, Generic[R]):
     """
     Record file that acts like mutable sequence. It allows direct reading/writing of structured data (records).
 
@@ -585,7 +588,7 @@ class MutableRecordFile(BaseMutableRecordFile, MutableRandomLineAccessFile):
     pass
 
 
-class MemoryMappedRecordFile(BaseRecordFile, MemoryMappedRandomLineAccessFile):
+class MemoryMappedRecordFile(BaseRecordFile, MemoryMappedRandomLineAccessFile, Generic[R]):
     """
     Memory mapped record file that acts like sequence. It allows direct reading of structured data (records).
 
@@ -597,7 +600,7 @@ class MemoryMappedRecordFile(BaseRecordFile, MemoryMappedRandomLineAccessFile):
     pass
 
 
-class MutableMemoryMappedRecordFile(BaseMutableRecordFile, MutableMemoryMappedRandomLineAccessFile):
+class MutableMemoryMappedRecordFile(BaseMutableRecordFile, MutableMemoryMappedRandomLineAccessFile, Generic[R]):
     """
     Memory mapped record file that acts like mutable sequence. It allows direct reading/writing of structured data
     (records).
@@ -762,7 +765,7 @@ class TmpPool:
 
     def __len__(self):
         return len(self._created_files)
-    
+
     def __getitem__(self, item) -> str:
         """
         Path to tmp file.
