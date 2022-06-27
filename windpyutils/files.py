@@ -7,26 +7,34 @@ Utils for work with files.
 """
 import collections.abc
 import csv
+import json
 import mmap
 from abc import ABC, abstractmethod
 from contextlib import nullcontext
-from typing import Union, Dict, Any, Type, List, Optional, Sequence, MutableSequence, TextIO, Generator
+from dataclasses import dataclass, asdict, fields
+from typing import Union, Dict, Any, Type, List, Optional, Sequence, MutableSequence, TextIO, Generator, Iterable, \
+    TypeVar, Generic
+
+C = TypeVar('C')  # type of line content
 
 
-class BaseRandomLineAccessFile(ABC):
+class BaseRandomLineAccessFile(collections.abc.Sequence, Generic[C], ABC):
     """
     Base class for all RandomLineAccessFiles these are files that allows to access line in file by its index.
     """
 
-    def __init__(self, path_to: str):
+    def __init__(self, path_to: str, lines: Optional[MutableSequence[Union[int, str]]] = None):
         """
         initialization
 
         :param path_to: path to file
+        :param lines: It may contain line offsets or line content in form of string representation.
+            If None it will be created automatically.
+            Allows selection of a subset of lines.
         """
         self.path_to = path_to
         self._dirty = False
-        self._lines: MutableSequence[Union[int, str]] = []    # it may contain line offsets or line contents
+        self._lines: MutableSequence[Union[int, str]] = [] if lines is None else lines
 
     @property
     def dirty(self) -> bool:
@@ -50,7 +58,7 @@ class BaseRandomLineAccessFile(ABC):
         """
         return len(self._lines)
 
-    def __iter__(self) -> Generator[str, None, None]:
+    def __iter__(self) -> Generator[C, None, None]:
         """
         sequence iteration over whole file
         :return: generator of lines
@@ -102,20 +110,23 @@ class BaseRandomLineAccessFile(ABC):
         """
         pass
 
-    def __getitem__(self,  selector: Union[int, slice]) -> Union[str, List[str]]:
+    def __getitem__(self, selector: Union[int, slice, Iterable]) -> Union[C, List[C]]:
         """
         Get n-th line from file.
 
         :param n: line index or slice
-        :return: n-th line or list of lines in case of slice
+        :return: n-th line or list with lines subset in case of slice or iterable
         :raise RuntimeError: When the file is not opened.
         :raise IndexError: When the selector is invalid
         """
         if self.closed:
             raise RuntimeError("Firstly open the file.")
 
-        if isinstance(selector, slice):
-            return [self._get_item(i) for i in range(len(self))[selector]]
+        if not isinstance(selector, int):
+            iter_over = selector
+            if isinstance(selector, slice):
+                iter_over = range(len(self))[selector]
+            return [self._get_item(i) for i in iter_over]
 
         return self._get_item(selector)
 
@@ -148,7 +159,7 @@ class BaseRandomLineAccessFile(ABC):
         pass
 
 
-class RandomLineAccessFile(BaseRandomLineAccessFile):
+class RandomLineAccessFile(BaseRandomLineAccessFile[str]):
     """
     Allows fast access to any line in given file.
     This structure is just for reading.
@@ -173,7 +184,7 @@ class RandomLineAccessFile(BaseRandomLineAccessFile):
         Makes just the line offsets index. Whole file itself is not loaded into memory.
 
         :param path_to: path to file
-        :param line_offsets: Pre-creeated index of line offsets. If None it will be created automatically
+        :param line_offsets: Pre-created index of line offsets. If None it will be created automatically
         """
 
         super().__init__(path_to)
@@ -267,12 +278,11 @@ class BaseMutableRandomLineAccessFile(BaseRandomLineAccessFile, collections.abc.
     Those new/modified lines will not be immediately written to the file, but rather the changes will be done in memory
     which allows to make the work with a file more effective.
     You can save the file when you are done with changes.
-
     """
 
     def _get_item(self, n: int) -> str:
         """
-        Determines whether the n-th line should be readed from file or memory and returns it.
+        Determines whether the n-th line should be read from file or memory and returns it.
 
         :param n: line index
         :return: n-th line
@@ -329,11 +339,22 @@ class BaseMutableRandomLineAccessFile(BaseRandomLineAccessFile, collections.abc.
         :param out: path to file or opened file
         :param line_ending: it allows to choose which line ending should be used
         """
+        self._save_from_iter(self, out, line_ending)
+
+    @staticmethod
+    def _save_from_iter(lines: Iterable[str], out: Union[str, TextIO], line_ending: str = "\n"):
+        """
+        Saves lines to given file.
+
+        :param lines: iterable of lines
+        :param out: path to file or opened file
+        :param line_ending: it allows to choose which line ending should be used
+        """
 
         with (open(out, "w") if isinstance(out, str) else nullcontext()) as opened_f:
             f = opened_f if isinstance(out, str) else out
 
-            for line in self:
+            for line in lines:
                 line: str
                 print(line.rstrip("\n"), file=f, end=line_ending)
 
@@ -371,6 +392,196 @@ class MutableMemoryMappedRandomLineAccessFile(BaseMutableRandomLineAccessFile, M
         >>>    file.save("results.txt")
     """
 
+    pass
+
+
+class Record(ABC):
+    """
+    Abstract class of a record that forces load/save interface.
+    """
+
+    @classmethod
+    @abstractmethod
+    def load(cls, s: str) -> "Record":
+        """
+        Loads record from its string representation.
+
+        :param s: string representation
+        :return: loaded record
+        """
+        pass
+
+    @abstractmethod
+    def save(self) -> str:
+        """
+        Converts record to its string representation that can be later loaded.
+        WARNING: It should not contain line endings as we are assuming single record per line.
+
+        This could be empty operation when it is used with non mutable files.
+        :return: representation of a record that could be loaded
+        """
+        pass
+
+
+@dataclass
+class JsonRecord(Record, ABC):
+    """
+    Record with json string representation.
+    """
+    class_fields_cache = {}
+
+    @classmethod
+    def load(cls, s: str) -> "JsonRecord":
+        dict_repr = json.loads(s)
+
+        if cls not in cls.class_fields_cache:
+            cls.class_fields_cache[cls] = {f.name for f in fields(cls) if f.init}
+
+        field_names = cls.class_fields_cache[cls]
+        arg_dict = {k: v for k, v in dict_repr.items() if k in field_names}
+        return cls(**arg_dict)
+
+    def save(self) -> str:
+        return json.dumps(asdict(self), separators=(',', ':'))
+
+
+class BaseRecordFile(BaseRandomLineAccessFile[Record], ABC):
+    """
+    Base class for record files that acts like a sequence. It allows direct reading/writing of structured data
+    (records).
+    """
+
+    def __init__(self, path_to: str, record_class: Type[Record],
+                 lines: Optional[MutableSequence[Union[int, str]]] = None):
+        """
+        initialization
+
+        :param path_to: path to source file
+        :param record_class: class of a records that are saved (or should be) on given path
+        :param lines: It may contain line offsets or line content in form of string representation.
+            If None it will be created automatically.
+            Allows selection of a subset of lines.
+        """
+        super().__init__(path_to, lines)
+        self._dirty = True
+        self.record_class = record_class
+
+    def _get_item(self, n: int) -> Record:
+        """
+        Determines whether the n-th line should be read from file or memory and returns it.
+
+        :param n: line index
+        :return: n-th line
+        """
+        line = super()._get_item(n)
+        return self.record_class.load(line)
+
+
+class BaseMutableRecordFile(BaseRecordFile, BaseMutableRandomLineAccessFile, ABC):
+    """
+    Base class for record files that acts like a mutable sequence. It allows direct reading/writing of structured data
+    (records).
+    """
+
+    def __setitem__(self, i: int, r: Record):
+        """
+        change n-th line
+
+        :param i: line index
+        :param r: record
+        :raise IndexError: When the key is invalid
+        :raise ValueError: when invalid content is provided
+        """
+        if not isinstance(r, Record):
+            raise ValueError("You can set only Record.")
+
+        super().__setitem__(i, r.save())
+
+    def insert(self, index: int, content: Record):
+        """
+        insert new line at specified index
+
+        :param index: index where the line should be inserted
+        :param content: record
+        :raise ValueError: when invalid content is provided
+        """
+        if not isinstance(content, Record):
+            raise ValueError("You can set only Record.")
+
+        super().insert(index, content.save())
+
+    def save(self, out: Union[str, TextIO], line_ending: str = "\n"):
+        """
+        Saves lines to given file.
+
+        :param out: path to file or opened file
+        :param line_ending: it allows to choose which line ending should be used
+        """
+
+        self._save_from_iter(
+            (BaseRandomLineAccessFile._get_item(self, i) if isinstance(x, int) else x
+             for i, x in enumerate(self._lines)),
+            out,
+            line_ending
+        )
+
+
+class RecordFile(BaseRecordFile, RandomLineAccessFile):
+    """
+    Record file that acts like sequence. It allows direct reading of structured data (records).
+
+    Example:
+        >>>with RecordFile("example.txt", MyRecord) as file:
+        >>>    print(file[1])
+        "MyRecord(some=10,arg=2)"
+
+    """
+    pass
+
+
+class MutableRecordFile(BaseMutableRecordFile, MutableRandomLineAccessFile):
+    """
+    Record file that acts like mutable sequence. It allows direct reading/writing of structured data (records).
+
+
+    Example:
+        >>>with MutableRecordFile("example.txt", MyRecord) as file:
+        >>>    print(file[1])
+        "MyRecord(some=10,arg=2)"
+        >>>    file[1] = MyRecord(some=5,arg=2)
+        >>>    print(file[1])
+        "MyRecord(some=5,arg=2)"
+        >>>    file.save("results.txt")
+    """
+    pass
+
+
+class MemoryMappedRecordFile(BaseRecordFile, MemoryMappedRandomLineAccessFile):
+    """
+    Memory mapped record file that acts like sequence. It allows direct reading of structured data (records).
+
+    Example:
+        >>>with MemoryMappedRecordFile("example.txt", MyRecord) as file:
+        >>>    print(file[1])
+        "MyRecord(some=10,arg=2)"
+    """
+    pass
+
+
+class MutableMemoryMappedRecordFile(BaseMutableRecordFile, MutableMemoryMappedRandomLineAccessFile):
+    """
+    Memory mapped record file that acts like mutable sequence. It allows direct reading/writing of structured data
+    (records).
+
+    Example:
+        >>>with MutableMemoryMappedRecordFile("example.txt", MyRecord) as file:
+        >>>    print(file[1])
+        "MyRecord(some=10,arg=2)"
+        >>>    file[1] = MyRecord(some=5,arg=2)
+        >>>    print(file[1])
+        "MyRecord(some=5,arg=2)"
+        >>>    file.save("results.txt")
+    """
     pass
 
 

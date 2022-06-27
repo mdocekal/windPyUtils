@@ -8,10 +8,13 @@ Tests for files module.
 import os
 import random
 import unittest
+import json
+from dataclasses import dataclass
 from io import StringIO
 
 from windpyutils.files import RandomLineAccessFile, MapAccessFile, MemoryMappedRandomLineAccessFile, \
-    MutableRandomLineAccessFile, MutableMemoryMappedRandomLineAccessFile
+    MutableRandomLineAccessFile, MutableMemoryMappedRandomLineAccessFile, JsonRecord, RecordFile, Record, \
+    MemoryMappedRecordFile, MutableRecordFile, MutableMemoryMappedRecordFile
 
 path_to_this_script_file = os.path.dirname(os.path.realpath(__file__))
 file_with_line_numbers = os.path.join(path_to_this_script_file, "fixtures/file_with_line_numbers.txt")
@@ -60,9 +63,18 @@ class TestRandomLineAccessFile(unittest.TestCase):
         random.shuffle(indices)
 
         with self.lines_file as lines:
-            self.assertListEqual([i for i in range(10, 20)],  [int(x) for x in lines[10:20]])
-            self.assertListEqual([i for i in range(10, 20, 2)], [int(x) for x in lines[10:20:2]])
-            self.assertListEqual([i for i in range(900)], [int(x) for x in lines[:-100]])
+            r = lines[10:20]
+            self.assertSequenceEqual([i for i in range(10, 20)], [int(x) for x in r])
+            self.assertSequenceEqual([i for i in range(10, 20, 2)], [int(x) for x in lines[10:20:2]])
+            self.assertSequenceEqual([i for i in range(900)], [int(x) for x in lines[:-100]])
+        self.assertFalse(self.lines_file.dirty)
+
+    def test_get_from_iterable(self):
+        indices = [i for i in range(1000)]
+        random.shuffle(indices)
+
+        with self.lines_file as lines:
+            self.assertSequenceEqual([10, 15, 20], [int(x) for x in lines[[10, 15, 20]]])
         self.assertFalse(self.lines_file.dirty)
 
 
@@ -72,7 +84,7 @@ class TestRandomLineAccessFileFromKnownIndex(TestRandomLineAccessFile):
         lines_offsets = []
         for i in range(1000):
             lines_offsets.append(offset)
-            offset += len(str(i))+1
+            offset += len(str(i)) + 1
         self.lines_file = RandomLineAccessFile(file_with_line_numbers, lines_offsets)
 
 
@@ -157,7 +169,7 @@ class TestMutableRandomLineAccessFile(TestRandomLineAccessFile):
         out = StringIO()
         with self.lines_file:
             self.lines_file.save(out)
-            self.assertEqual("\n".join(self.gt)+"\n", out.getvalue())
+            self.assertEqual("\n".join(self.gt) + "\n", out.getvalue())
             self.assertFalse(self.lines_file.dirty)
 
     def test_save_path(self):
@@ -247,7 +259,217 @@ class TestMapAccessFile(unittest.TestCase):
             _ = mapped_file[0]
 
 
+@dataclass
+class OwnJsonRecord(JsonRecord):
+    mass: float
+    velocity: float
+
+
+class TestJsonRecord(unittest.TestCase):
+    def test_load(self) -> None:
+        r = OwnJsonRecord.load('{"mass":10.2,"velocity":120}')
+        self.assertEqual(10.2, r.mass)
+        self.assertEqual(120, r.velocity)
+
+    def test_repr(self):
+        r = OwnJsonRecord(10.2, 120)
+        representation = r.save()
+        d = json.loads(representation)
+        self.assertEqual({"mass": 10.2, "velocity": 120}, d)
+
+
+@dataclass
+class IntRecord(Record):
+    num: int
+
+    @classmethod
+    def load(cls, s: str) -> "Record":
+        return cls(int(s))
+
+    def save(self) -> str:
+        return str(self.num)
+
+
+class TestRecordFile(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.record_file = RecordFile(file_with_line_numbers, IntRecord)
+
+    def test_init(self):
+        self.assertEqual(self.record_file.path_to, file_with_line_numbers)
+        self.assertIsNone(self.record_file.file)
+        self.assertTrue(self.record_file.dirty)
+
+    def test_len(self):
+        self.assertEqual(len(self.record_file), 1000)
+        self.assertTrue(self.record_file.dirty)
+
+    def test_get_line_not_opened(self):
+        with self.assertRaises(RuntimeError):
+            _ = self.record_file[0]
+
+    def test_seq_iter(self):
+        with self.record_file as lines:
+            res = list(lines)
+            gt = [IntRecord(i) for i in range(1000)]
+            self.assertSequenceEqual(gt, res)
+        self.assertTrue(self.record_file.dirty)
+
+    def test_get_line_one_by_one(self):
+        indices = [i for i in range(1000)]
+        random.shuffle(indices)
+
+        with self.record_file as lines:
+            for i in indices:
+                self.assertEqual(IntRecord(i), lines[i])
+        self.assertTrue(self.record_file.dirty)
+
+    def test_get_range(self):
+        indices = [i for i in range(1000)]
+        random.shuffle(indices)
+
+        with self.record_file as lines:
+            r = lines[10:20]
+            self.assertSequenceEqual([IntRecord(i) for i in range(10, 20)], r)
+            self.assertSequenceEqual([IntRecord(i) for i in range(10, 20, 2)], lines[10:20:2])
+            self.assertSequenceEqual([IntRecord(i) for i in range(900)], lines[:-100])
+        self.assertTrue(self.record_file.dirty)
+
+    def test_get_from_iterable(self):
+        indices = [i for i in range(1000)]
+        random.shuffle(indices)
+
+        with self.record_file as lines:
+            self.assertSequenceEqual([IntRecord(10), IntRecord(15), IntRecord(20)], lines[[10, 15, 20]])
+        self.assertTrue(self.record_file.dirty)
+
+
+class TestRecordFileFromKnownIndex(TestRecordFile):
+    def setUp(self) -> None:
+        offset = 0
+        lines_offsets = []
+        for i in range(1000):
+            lines_offsets.append(offset)
+            offset += len(str(i)) + 1
+        self.record_file = RecordFile(file_with_line_numbers, IntRecord, lines_offsets)
+
+
+class TestMemoryMappedRecordFile(TestRecordFile):
+
+    def setUp(self) -> None:
+        self.record_file = MemoryMappedRecordFile(file_with_line_numbers, IntRecord)
+
+
+class TestMutableRecordFile(TestRecordFile):
+    def setUp(self) -> None:
+        self.record_file = MutableRecordFile(file_with_line_numbers, IntRecord)
+        self.gt = list(IntRecord(x) for x in range(1000))
+
+    def tearDown(self) -> None:
+        if os.path.isfile(RES_TMP_FILE):
+            os.remove(RES_TMP_FILE)
+
+    def test_setitem(self):
+        with self.record_file:
+            self.assertTrue(self.record_file.dirty)
+            self.record_file[0] = IntRecord(9999)
+            self.assertTrue(self.record_file.dirty)
+            self.gt[0] = IntRecord(9999)
+            self.assertSequenceEqual(self.gt, self.record_file)
+
+            self.record_file[2] = IntRecord(99999)
+            self.gt[2] = IntRecord(99999)
+            self.assertSequenceEqual(self.gt, self.record_file)
+            self.assertTrue(self.record_file.dirty)
+
+    def test_setitem_invalid_value(self):
+        with self.assertRaises(ValueError):
+            self.assertTrue(self.record_file.dirty)
+            self.record_file[0] = 10
+            self.assertTrue(self.record_file.dirty)
+
+    def test_del(self):
+        with self.record_file:
+            del self.gt[999]
+            del self.record_file[999]
+            self.assertSequenceEqual(self.gt, self.record_file)
+            self.assertTrue(self.record_file.dirty)
+            del self.gt[500]
+            del self.record_file[500]
+            self.assertSequenceEqual(self.gt, self.record_file)
+            self.assertTrue(self.record_file.dirty)
+            del self.gt[0]
+            del self.record_file[0]
+            self.assertSequenceEqual(self.gt, self.record_file)
+            self.assertTrue(self.record_file.dirty)
+
+    def test_insert(self):
+        with self.record_file:
+            self.gt.insert(10, IntRecord(99999))
+            self.record_file.insert(10, IntRecord(99999))
+            self.assertSequenceEqual(self.gt, self.record_file)
+            self.assertTrue(self.record_file.dirty)
+
+    def test_insert_after(self):
+        with self.record_file:
+            self.gt.insert(9999, IntRecord(99999))
+            self.record_file.insert(9999, IntRecord(99999))
+            self.assertSequenceEqual(self.gt, self.record_file)
+            self.assertTrue(self.record_file.dirty)
+
+    def test_insert_before(self):
+        with self.record_file:
+            self.gt.insert(-1, IntRecord(99999))
+            self.record_file.insert(-1, IntRecord(99999))
+            self.assertSequenceEqual(self.gt, self.record_file)
+            self.assertTrue(self.record_file.dirty)
+
+    def test_append(self):
+        with self.record_file:
+            self.gt.append(IntRecord(99999))
+            self.record_file.append(IntRecord(99999))
+            self.assertSequenceEqual(self.gt, self.record_file)
+            self.assertTrue(self.record_file.dirty)
+
+    def test_save(self):
+        out = StringIO()
+        with self.record_file:
+            self.record_file.save(out)
+            self.assertEqual("\n".join(str(x.num) for x in self.gt) + "\n", out.getvalue())
+            self.assertTrue(self.record_file.dirty)
+
+    def test_save_path(self):
+        with self.record_file:
+            self.record_file.save(RES_TMP_FILE)
+
+        with open(RES_TMP_FILE, "r") as out:
+            self.assertEqual("\n".join(str(x.num) for x in self.gt) + "\n", out.read())
+
+    def test_modified_save(self):
+        out = StringIO()
+        with self.record_file:
+            self.gt[100] = IntRecord(99999)
+            self.record_file[100] = IntRecord(99999)
+            self.record_file.save(out)
+            self.assertEqual("\n".join(str(x.num) for x in self.gt) + "\n", out.getvalue())
+            self.assertTrue(self.record_file.dirty)
+
+    def test_save_with_diff_end(self):
+        out = StringIO()
+        with self.record_file:
+            self.gt[100] = IntRecord(99999)
+            self.record_file[100] = IntRecord(99999)
+            self.record_file.save(out, "\t")
+            self.assertEqual("\t".join(str(x.num) for x in self.gt) + "\t", out.getvalue())
+            self.assertTrue(self.record_file.dirty)
+
+
+class TestMutableMemoryMappedRecordFile(TestMutableRandomLineAccessFile):
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.record_file = MutableMemoryMappedRecordFile(file_with_line_numbers, IntRecord)
+
+
 if __name__ == '__main__':
     unittest.main()
-
-
