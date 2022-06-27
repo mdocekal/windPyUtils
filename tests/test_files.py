@@ -5,23 +5,37 @@ Tests for files module.
 
 :author:     Martin Dočekal
 """
+import json
+import multiprocessing
 import os
 import random
 import unittest
-import json
 from dataclasses import dataclass
 from io import StringIO
+from pathlib import Path
+from unittest import TestCase
 
 from windpyutils.files import RandomLineAccessFile, MapAccessFile, MemoryMappedRandomLineAccessFile, \
-    MutableRandomLineAccessFile, MutableMemoryMappedRandomLineAccessFile, JsonRecord, RecordFile, Record, \
+    MutableRandomLineAccessFile, MutableMemoryMappedRandomLineAccessFile, TmpPool, JsonRecord, Record, RecordFile, \
     MemoryMappedRecordFile, MutableRecordFile, MutableMemoryMappedRecordFile
+from windpyutils.parallel.own_proc_pools import FunctorPool, FunctorWorker
 
 path_to_this_script_file = os.path.dirname(os.path.realpath(__file__))
 file_with_line_numbers = os.path.join(path_to_this_script_file, "fixtures/file_with_line_numbers.txt")
 file_with_mapping = os.path.join(path_to_this_script_file, "fixtures/mapped_file.txt")
 file_with_mapping_index = os.path.join(path_to_this_script_file, "fixtures/mapped_file.index")
 
+TMP_DIR = os.path.join(path_to_this_script_file, "tmp")
 RES_TMP_FILE = os.path.join(path_to_this_script_file, "tmp/res.txt")
+
+
+class GetLineFunctorWorker(FunctorWorker):
+    def __init__(self, lines):
+        super().__init__()
+        self.lines = lines
+
+    def __call__(self, i):
+        return int(self.lines[i])
 
 
 class TestRandomLineAccessFile(unittest.TestCase):
@@ -49,7 +63,7 @@ class TestRandomLineAccessFile(unittest.TestCase):
             self.assertEqual(gt, res)
         self.assertFalse(self.lines_file.dirty)
 
-    def test_get_line_one_by_one(self):
+    def test_get_line_one_by_one_randomly(self):
         indices = [i for i in range(1000)]
         random.shuffle(indices)
 
@@ -58,15 +72,28 @@ class TestRandomLineAccessFile(unittest.TestCase):
                 self.assertEqual(int(lines[i]), i)
         self.assertFalse(self.lines_file.dirty)
 
+    def test_get_line_one_by_one_randomly_multiprocessing(self):
+        if multiprocessing.cpu_count() <= 1:
+            self.skipTest("Skipping test as there is not enough cpus.")
+            return
+
+        indices = [i for i in range(1000)]
+        random.shuffle(indices)
+
+        with self.lines_file as lines:
+            with FunctorPool([GetLineFunctorWorker(lines) for _ in range(multiprocessing.cpu_count())]) as pool:
+                for gt, res in zip(indices, pool.imap(indices)):
+                    self.assertEqual(gt, res)
+        self.assertFalse(self.lines_file.dirty)
+
     def test_get_range(self):
         indices = [i for i in range(1000)]
         random.shuffle(indices)
 
         with self.lines_file as lines:
-            r = lines[10:20]
-            self.assertSequenceEqual([i for i in range(10, 20)], [int(x) for x in r])
-            self.assertSequenceEqual([i for i in range(10, 20, 2)], [int(x) for x in lines[10:20:2]])
-            self.assertSequenceEqual([i for i in range(900)], [int(x) for x in lines[:-100]])
+            self.assertListEqual([i for i in range(10, 20)],  [int(x) for x in lines[10:20]])
+            self.assertListEqual([i for i in range(10, 20, 2)], [int(x) for x in lines[10:20:2]])
+            self.assertListEqual([i for i in range(900)], [int(x) for x in lines[:-100]])
         self.assertFalse(self.lines_file.dirty)
 
     def test_get_from_iterable(self):
@@ -84,7 +111,7 @@ class TestRandomLineAccessFileFromKnownIndex(TestRandomLineAccessFile):
         lines_offsets = []
         for i in range(1000):
             lines_offsets.append(offset)
-            offset += len(str(i)) + 1
+            offset += len(str(i))+1
         self.lines_file = RandomLineAccessFile(file_with_line_numbers, lines_offsets)
 
 
@@ -169,7 +196,7 @@ class TestMutableRandomLineAccessFile(TestRandomLineAccessFile):
         out = StringIO()
         with self.lines_file:
             self.lines_file.save(out)
-            self.assertEqual("\n".join(self.gt) + "\n", out.getvalue())
+            self.assertEqual("\n".join(self.gt)+"\n", out.getvalue())
             self.assertFalse(self.lines_file.dirty)
 
     def test_save_path(self):
@@ -243,6 +270,20 @@ class TestMapAccessFile(unittest.TestCase):
             for k in self.gt_map.keys():
                 self.assertEqual(str(k), mapped_file[k].rstrip())
 
+    def test_with_dict_multiprocessing(self):
+        if multiprocessing.cpu_count() <= 1:
+            self.skipTest("Skipping test as there is not enough cpus.")
+            return
+        mapped_file = MapAccessFile(file_with_mapping, self.gt_map)
+
+        self.assertEqual(self.gt_map, mapped_file.mapping)
+        self.assertEqual(len(mapped_file), 11)
+
+        with mapped_file:
+            with FunctorPool([GetLineFunctorWorker(mapped_file) for _ in range(multiprocessing.cpu_count())]) as pool:
+                for gt, res in zip(self.gt_map.keys(), pool.imap(self.gt_map.keys())):
+                    self.assertEqual(gt, res)
+
     def test_with_file(self):
         mapped_file = MapAccessFile(file_with_mapping, file_with_mapping_index, key_type=int)
 
@@ -257,6 +298,92 @@ class TestMapAccessFile(unittest.TestCase):
         mapped_file = MapAccessFile(file_with_mapping, file_with_mapping_index, key_type=int)
         with self.assertRaises(RuntimeError):
             _ = mapped_file[0]
+
+
+class TestTmpPool(TestCase):
+    def test_create(self):
+        paths = []
+        with TmpPool() as pool:
+            for _ in range(10):
+                paths.append(pool.create())
+                self.assertTrue(os.path.isfile(paths[-1]))
+
+            self.assertEqual(10, len(pool))
+            self.assertSequenceEqual(paths, list(pool))
+
+        self.assertEqual(0, len(pool))
+        self.assertSequenceEqual([], list(pool))
+
+        for p in paths:
+            self.assertFalse(os.path.isfile(p))
+
+    def test_create_given_dir(self):
+        paths = []
+        with TmpPool(TMP_DIR) as pool:
+            for _ in range(10):
+                paths.append(pool.create())
+                self.assertTrue(os.path.isfile(paths[-1]))
+                self.assertTrue(str(Path(paths[-1]).parent.resolve()) == TMP_DIR)
+        for p in paths:
+            self.assertFalse(os.path.isfile(p))
+
+    def test_remove(self):
+        with TmpPool() as pool:
+            for _ in range(10):
+                p = pool.create()
+                pool.remove(p)
+                self.assertFalse(os.path.isfile(p))
+
+    def test_flush(self):
+        paths = []
+        with TmpPool() as pool:
+            for _ in range(10):
+                paths.append(pool.create())
+            pool.flush()
+            for p in paths:
+                self.assertFalse(os.path.isfile(p))
+
+
+class CreateTmpFileWorker(FunctorWorker):
+    def __init__(self, pool: TmpPool):
+        super().__init__()
+        self.pool = pool
+
+    def __call__(self, inp: None) -> str:
+        return self.pool.create()
+
+
+class TestTmpPoolMultProc(TestCase):
+    def test_create(self):
+        if multiprocessing.cpu_count() <= 1:
+            self.skipTest("Not enough cpus.")
+        paths = []
+
+        with TmpPool(multi_proc=True) as pool, \
+                FunctorPool([CreateTmpFileWorker(pool) for _ in range(multiprocessing.cpu_count())]) as proc_pool:
+            for p in proc_pool.imap(None for _ in range(multiprocessing.cpu_count())):
+                paths.append(p)
+                self.assertTrue(os.path.isfile(p))
+
+        for p in paths:
+            self.assertFalse(os.path.isfile(p))
+
+    def test_remove(self):
+        with TmpPool(multi_proc=True) as pool, \
+                FunctorPool([CreateTmpFileWorker(pool) for _ in range(multiprocessing.cpu_count())]) as proc_pool:
+            for p in proc_pool.imap(None for _ in range(multiprocessing.cpu_count())):
+                pool.remove(p)
+                self.assertFalse(os.path.isfile(p))
+
+    def test_flush(self):
+        paths = []
+        with TmpPool(multi_proc=True) as pool, \
+                FunctorPool([CreateTmpFileWorker(pool) for _ in range(multiprocessing.cpu_count())]) as proc_pool:
+            for p in proc_pool.imap(None for _ in range(multiprocessing.cpu_count())):
+                paths.append(p)
+            pool.flush()
+            for p in paths:
+                self.assertFalse(os.path.isfile(p))
 
 
 @dataclass
@@ -473,3 +600,5 @@ class TestMutableMemoryMappedRecordFile(TestMutableRandomLineAccessFile):
 
 if __name__ == '__main__':
     unittest.main()
+
+

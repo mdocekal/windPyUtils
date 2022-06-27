@@ -9,6 +9,8 @@ import os
 import unittest
 from multiprocessing.queues import Queue
 
+from typing import List
+
 from windpyutils.parallel.own_proc_pools import FunctorPool, FunctorWorker, T, R
 
 
@@ -22,6 +24,24 @@ class MockWorker(FunctorWorker):
 
     def __call__(self, inp: int) -> int:
         return inp*2
+
+    def begin(self):
+        self.begin_called.set()
+
+    def end(self):
+        self.end_called.set()
+
+
+class MockWorkerLargeData(FunctorWorker):
+
+    def __init__(self):
+        super().__init__()
+        self.scaler = None
+        self.begin_called = multiprocessing.Event()
+        self.end_called = multiprocessing.Event()
+
+    def __call__(self, inp: int) -> List[int]:
+        return [999999]*9999 + [inp*2]
 
     def begin(self):
         self.begin_called.set()
@@ -52,11 +72,26 @@ class TestFunctorPool(unittest.TestCase):
         else:
             self.skipTest("This test can only be run on the multi cpu device.")
 
-    def test_map(self):
+    def test_imap(self):
         if os.cpu_count() > 1:
             data = [i for i in range(10000)]
             with FunctorPool(self.workers) as pool:
                 results = list(pool.imap(data))
+            self.assertListEqual([i * 2 for i in data], results)
+
+            for w in self.workers:
+                self.assertTrue(w.begin_called.is_set())
+                self.assertTrue(w.end_called.is_set())
+        else:
+            self.skipTest("This test can only be run on the multi cpu device.")
+
+    def test_imap_large_data(self):
+        if os.cpu_count() > 1:
+            self.workers = [MockWorkerLargeData() for _ in range(2)]
+            data = [i for i in range(10000)]
+            
+            with FunctorPool(self.workers) as pool:
+                results = list(x[-1] for x in pool.imap(data))
                 self.assertListEqual([i * 2 for i in data], results)
 
             for w in self.workers:
