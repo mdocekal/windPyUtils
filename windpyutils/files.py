@@ -279,6 +279,7 @@ class MemoryMappedRandomLineAccessFile(RandomLineAccessFile):
         if self.file is not None:
             self.mm.close()
             self.file.close()
+            self.mm = None
             self.file = None
             self._opened_in_process_with_id = None
 
