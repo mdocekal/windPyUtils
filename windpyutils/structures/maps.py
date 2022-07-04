@@ -69,7 +69,7 @@ class ImmutIntervalMap:
         :return: Value associated to the interval in which the given key is.
         :rtype: Any
         """
-        # search smallest interval ends that is grater or equal to key
+        # search the smallest interval ends that is greater or equal to key
         searched_i = bisect.bisect_left(self._sortedEnds, key)
 
         if searched_i == len(self._sortedEnds):
