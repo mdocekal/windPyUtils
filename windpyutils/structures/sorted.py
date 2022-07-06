@@ -44,7 +44,11 @@ class SortedSet(MutableSet, Generic[T]):
 
     def __contains__(self, x: T) -> bool:
         # search the smallest interval ends that is greater or equal to x
-        return self.insertions_index(x)[1]
+        try:
+            return self.insertions_index(x)[1]
+        except TypeError:
+            # invalid type so definitely not in
+            return False
 
     def insertions_index(self, x: T) -> Tuple[int, bool]:
         """

@@ -29,6 +29,8 @@ class TestSortedSet(TestCase):
         self.assertTrue(9 in self.filled)
         self.assertFalse(99 in self.filled)
         self.assertFalse(10 in self.empty)
+        self.assertFalse(None in self.filled)   # test even not comparable
+        self.assertFalse("some string" in self.filled)
 
     def test_add(self):
         self.filled.add(5)
