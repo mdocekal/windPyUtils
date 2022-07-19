@@ -5,10 +5,13 @@ This module contains multiprocessing pool that allows to use own process classes
 
 :author:     Martin Dočekal
 """
+import multiprocessing
 import queue
 from abc import abstractmethod, ABC
-from multiprocessing import Process, Queue, Value, Event
-from typing import TypeVar, Iterable, Generator, List, Generic
+from multiprocessing import Process
+from multiprocessing.context import BaseContext
+from multiprocessing.process import BaseProcess
+from typing import TypeVar, Iterable, Generator, List, Generic, Optional
 
 from windpyutils.buffers import Buffer
 
@@ -16,7 +19,7 @@ T = TypeVar('T')
 R = TypeVar('R')
 
 
-class FunctorWorker(Process, ABC, Generic[T, R]):
+class BaseFunctorWorker(BaseProcess, Generic[T, R]):
     """
     Functor worker for pools.
 
@@ -31,15 +34,18 @@ class FunctorWorker(Process, ABC, Generic[T, R]):
     :vartype results_queue: Optional[Queue]
     """
 
-    def __init__(self):
+    def __init__(self, context: BaseContext):
         """
         Initialization of parallel worker.
+
+        :param context: On which multiprocessing context this pool should operate.
         """
         super().__init__()
+
         self.wid = None
         self.work_queue = None
         self.results_queue = None
-        self.begin_finished = Event()
+        self.begin_finished = context.Event()
 
     @abstractmethod
     def __call__(self, inp: T) -> R:
@@ -88,20 +94,44 @@ class FunctorWorker(Process, ABC, Generic[T, R]):
             self.end()
 
 
+class FunctorWorker(Process, BaseFunctorWorker, ABC):
+    """
+    Functor worker for pools. Uses default multiprocessing context.
+
+    :ivar wid: unique id of this worker
+        If None than then the pool will asses one.
+    :vartype wid: Any
+    :ivar work_queue: queue that is used for receiving work and stop orders
+        If None then the default from pool will be used.
+    :vartype work_queue: Optional[Queue]
+    :ivar results_queue: queue that is used for sending results
+        If None then the default from pool will be used.
+    :vartype results_queue: Optional[Queue]
+    """
+
+    def __init__(self):
+        Process.__init__(self)
+        BaseFunctorWorker.__init__(self, multiprocessing.get_context())
+
+
 class FunctorPool:
     """
     A pool that uses given workers.
     """
 
-    def __init__(self, workers: List[FunctorWorker[T, R]]):
+    def __init__(self, workers: List[BaseFunctorWorker[T, R]], context: Optional[BaseContext] = None):
         """
         Initialization of pool.
 
         :param workers: parallel workers.
+        :param context: On which multiprocessing context this pool should operate.
         """
 
-        self._work_queue = Queue(len(workers))
-        self._results_queue = Queue()
+        if context is None:
+            context = multiprocessing.get_context()
+
+        self._work_queue = context.Queue(len(workers))
+        self._results_queue = context.Queue()
         self.procs = workers
 
         for i, p in enumerate(self.procs):
