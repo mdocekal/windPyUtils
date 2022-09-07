@@ -280,8 +280,9 @@ def int_2_roman(n: int) -> str:
 T = TypeVar("T")
 
 
-def sorted_combinations(elements: Iterable[T], key: Callable[[Tuple[T, ...]], Comparable]) -> \
-        Generator[Tuple[T, ...], None, None]:
+def sorted_combinations(elements: Iterable[T], key: Callable[[Tuple[T, ...]], Comparable],
+                        yield_key: bool = False) -> Generator[Union[Tuple[T, ...], Tuple[Tuple[T, ...], Comparable]],
+                                                              None, None]:
     """
     Generator of all combinations in sorted order.
     It assumes that for a combination c and an element e, holds the following property:
@@ -294,15 +295,19 @@ def sorted_combinations(elements: Iterable[T], key: Callable[[Tuple[T, ...]], Co
 
     :param elements: iterable of elements that you want to combine
     :param key: Function that is used to extract a comparison key from each combination.
+    :param yield_key: whether the key should be yielded along with combination, useful e.g. when you want to reuse
+        computed score
     :return: generator of combinations in sorted order
     """
     priority_queue = [(key((e,)), 1, (e,), i) for i, e in enumerate(elements)]  # 2. pos. assures sorting by comb len
 
     heapq.heapify(priority_queue)   # O(n)
     while priority_queue:   # O(2^n)
-        score, _, comb, index = heapq.heappop(priority_queue)  # O(log n)
+        sel_key, _, comb, index = heapq.heappop(priority_queue)  # O(log n)
         comb: Tuple[T, ...]
-        yield comb
+
+        yield (comb, sel_key) if yield_key else comb
+
         offset = index + 1
         for i, e in enumerate(elements[offset:]):
             new_comb = comb + (e,)
