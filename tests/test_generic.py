@@ -6,8 +6,10 @@ Created on 31.01.20
 """
 import itertools
 import unittest
+from unittest import TestCase
+
 from windpyutils.generic import sub_seq, RoundSequence, search_sub_seq, compare_pos_in_iterables, Batcher, BatcherIter, \
-    roman_2_int, int_2_roman
+    roman_2_int, int_2_roman, sorted_combinations
 
 
 class TestSubSeq(unittest.TestCase):
@@ -213,6 +215,28 @@ class TestInt2Roman(unittest.TestCase):
         self.assertEqual("CCVII", int_2_roman(207))
         self.assertEqual("MIX", int_2_roman(1009))
         self.assertEqual("MLXVI", int_2_roman(1066))
+
+
+class TestSortedCombinations(TestCase):
+    def test_sorted_combinations_with_same_weights(self):
+        # it is basically the same as itertools combinations implementation so lets use it as reference
+        res = list(sorted_combinations(range(5), lambda x: 1))
+        gt = list(itertools.chain.from_iterable(list(itertools.combinations(range(5), k)) for k in range(1, 6)))
+        self.assertSequenceEqual(res, gt)
+
+    def test_sorted_combinations_with_weights_according_to_elements_in_combination(self):
+        # it is basically the same as itertools combinations implementation so lets use it as reference
+        res = list(sorted_combinations(range(5), lambda x: len(x)))
+        gt = list(itertools.chain.from_iterable(list(itertools.combinations(range(5), k)) for k in range(1, 6)))
+        self.assertSequenceEqual(res, gt)
+
+    def test_sorted_combinations_weights_are_sum(self):
+        res = list(sorted_combinations(range(4), lambda x: sum(x)))
+        gt = [
+            (0, ), (1, ), (0, 1), (2, ), (0, 2), (3, ), (0, 3), (1, 2), (0, 1, 2), (1, 3), (0, 1, 3), (2, 3),
+            (0, 2, 3), (1, 2, 3), (0, 1, 2, 3)
+        ]
+        self.assertSequenceEqual(res, gt)
 
 
 if __name__ == '__main__':

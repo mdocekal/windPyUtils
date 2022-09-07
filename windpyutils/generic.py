@@ -5,8 +5,11 @@ This module contains generic utils
 
 :author:     Martin Dočekal
 """
+import heapq
 import math
-from typing import Sequence, List, Tuple, Iterable, Union, Any, Generator
+from typing import Sequence, List, Tuple, Iterable, Union, Any, Generator, Callable, TypeVar
+
+from windpyutils.typing import Comparable
 
 
 def get_all_subclasses(cls):
@@ -267,7 +270,40 @@ def int_2_roman(n: int) -> str:
         for v, r in [(1000, 'M'), (900, 'CM'), (500, 'D'), (400, 'CD'), (100, 'C'), (90, 'XC'), (50, 'L'), (40, 'XL'),
                      (10, 'X'), (9, 'IX'), (5, 'V'), (4, 'IV'), (1, 'I')]:
             times, remainder = divmod(remainder, v)
-            yield r*times
+            yield r * times
             if remainder == 0:
                 break
+
     return "".join(gen(n))
+
+
+T = TypeVar("T")
+
+
+def sorted_combinations(elements: Iterable[T], key: Callable[[Tuple[T, ...]], Comparable]) -> \
+        Generator[Tuple[T, ...], None, None]:
+    """
+    Generator of all combinations in sorted order.
+    It assumes that for a combination c and an element e, holds the following property:
+        a + (e, ) >= a
+    Thus adding an element to a combination could only make the new combination greater or equal to the original one.
+
+    The time complexity is:
+        O(2^n log n)
+    as it uses heapq which has O(log n) for push and pop instead of constant.
+
+    :param elements: iterable of elements that you want to combine
+    :param key: Function that is used to extract a comparison key from each combination.
+    :return: generator of combinations in sorted order
+    """
+    priority_queue = [(key((e,)), 1, (e,), i) for i, e in enumerate(elements)]  # 2. pos. assures sorting by comb len
+
+    heapq.heapify(priority_queue)   # O(n)
+    while priority_queue:   # O(2^n)
+        score, _, comb, index = heapq.heappop(priority_queue)  # O(log n)
+        comb: Tuple[T, ...]
+        yield comb
+        offset = index + 1
+        for i, e in enumerate(elements[offset:]):
+            new_comb = comb + (e,)
+            heapq.heappush(priority_queue, (key(new_comb), len(new_comb), new_comb, i+offset))  # O(log n)
