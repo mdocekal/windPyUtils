@@ -15,6 +15,7 @@ import tempfile
 from abc import ABC, abstractmethod
 from contextlib import nullcontext
 from dataclasses import dataclass, asdict, fields
+from io import StringIO
 from typing import Union, Dict, Any, Type, List, Optional, Sequence, MutableSequence, TextIO, Generator, Iterable, \
     TypeVar, Generic
 
@@ -429,6 +430,32 @@ class Record(ABC):
     """
     Abstract class of a record that forces load/save interface.
     """
+    _class_fields_cache = {}
+    _class_fields_types_cache = {}
+
+    @classmethod
+    def field_names(cls) -> List[str]:
+        """
+        Record field names.
+        """
+
+        try:
+            return cls._class_fields_cache[cls]
+        except KeyError:
+            cls._class_fields_cache[cls] = [f.name for f in fields(cls) if f.init]
+            return cls._class_fields_cache[cls]
+
+    @classmethod
+    def field_types(cls) -> List[Type]:
+        """
+        Record field types.
+        """
+
+        try:
+            return cls._class_fields_types_cache[cls]
+        except KeyError:
+            cls._class_fields_types_cache[cls] = [f.type for f in fields(cls) if f.init]
+            return cls._class_fields_types_cache[cls]
 
     @classmethod
     @abstractmethod
@@ -447,7 +474,7 @@ class Record(ABC):
         Converts record to its string representation that can be later loaded.
         WARNING: It should not contain line endings as we are assuming single record per line.
 
-        This could be empty operation when it is used with non mutable files.
+        This could be empty operation when it is used with non-mutable files.
         :return: representation of a record that could be loaded
         """
         pass
@@ -458,21 +485,63 @@ class JsonRecord(Record, ABC):
     """
     Record with json string representation.
     """
-    class_fields_cache = {}
 
     @classmethod
     def load(cls, s: str) -> "JsonRecord":
         dict_repr = json.loads(s)
-
-        if cls not in cls.class_fields_cache:
-            cls.class_fields_cache[cls] = {f.name for f in fields(cls) if f.init}
-
-        field_names = cls.class_fields_cache[cls]
-        arg_dict = {k: v for k, v in dict_repr.items() if k in field_names}
+        arg_dict = {k: v for k, v in dict_repr.items() if k in cls.field_names()}
         return cls(**arg_dict)
 
     def save(self) -> str:
         return json.dumps(asdict(self), separators=(',', ':'))
+
+
+@dataclass
+class CSVRecord(Record, ABC):
+    """
+    Record with csv string representation.
+    """
+    _delimiter = ","
+    _res_io = StringIO()
+    _writer = {}
+
+    @classmethod
+    def _dict_to_string(cls, d: Dict) -> str:
+        """
+        Converts dict representation to string.
+
+        :param d: dictionary containing all fields
+        :return: string representation of dictionary
+        """
+        try:
+            writer = cls._writer[cls]
+        except KeyError:
+            writer = csv.DictWriter(cls._res_io, fieldnames=cls.field_names(), delimiter=cls._delimiter)
+            cls._writer[cls] = writer
+
+        writer.writerow(d)
+
+        res = cls._res_io.getvalue()
+        cls._res_io.truncate(0)
+        cls._res_io.seek(0)
+        return res
+
+    @classmethod
+    def load(cls, s: str) -> "CSVRecord":
+        list_repr = next(iter(csv.reader([s], delimiter=cls._delimiter)))
+        arg_dict = {k: t(v) for k, t, v in zip(cls.field_names(), cls.field_types(), list_repr)}
+        return cls(**arg_dict)
+
+    def save(self) -> str:
+        return self._dict_to_string(asdict(self))
+
+
+@dataclass
+class TSVRecord(CSVRecord, ABC):
+    """
+    Record with tsv string representation.
+    """
+    _delimiter = "\t"
 
 
 R = TypeVar('R', bound=Record)  # type of record content

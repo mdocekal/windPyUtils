@@ -176,9 +176,6 @@ class TestFunctorPool(unittest.TestCase):
                 self.assertFalse(w.begin_called.is_set())
                 self.assertFalse(w.end_called.is_set())
             with FunctorPool(self.workers, self.context) as pool:
-                for w in self.workers:
-                    self.assertFalse(w.begin_called.is_set())
-                    self.assertFalse(w.end_called.is_set())
 
                 pool.until_all_ready()
                 for w in self.workers:

@@ -6,8 +6,10 @@ This module contains generic utils
 :author:     Martin Dočekal
 """
 import heapq
+import itertools
 import math
-from typing import Sequence, List, Tuple, Iterable, Union, Any, Generator, Callable, TypeVar
+import bisect
+from typing import Sequence, List, Tuple, Iterable, Union, Any, Generator, Callable, TypeVar, Optional
 
 from windpyutils.typing import Comparable
 
@@ -277,6 +279,17 @@ def int_2_roman(n: int) -> str:
     return "".join(gen(n))
 
 
+def arg_sort(elements: Sequence[Comparable], reverse: bool = False) -> List[int]:
+    """
+    Returns the indices that would sort the sequence.
+
+    :param elements: elements for arg sorting
+    :param reverse: True activates descended order
+    :return: indices
+    """
+    return sorted(range(len(elements)), key=lambda x: elements[x], reverse=reverse)
+
+
 T = TypeVar("T")
 
 
@@ -301,8 +314,8 @@ def sorted_combinations(elements: Iterable[T], key: Callable[[Tuple[T, ...]], Co
     """
     priority_queue = [(key((e,)), 1, (e,), i) for i, e in enumerate(elements)]  # 2. pos. assures sorting by comb len
 
-    heapq.heapify(priority_queue)   # O(n)
-    while priority_queue:   # O(2^n)
+    heapq.heapify(priority_queue)  # O(n)
+    while priority_queue:  # O(2^n)
         sel_key, _, comb, index = heapq.heappop(priority_queue)  # O(log n)
         comb: Tuple[T, ...]
 
@@ -311,4 +324,150 @@ def sorted_combinations(elements: Iterable[T], key: Callable[[Tuple[T, ...]], Co
         offset = index + 1
         for i, e in enumerate(elements[offset:]):
             new_comb = comb + (e,)
-            heapq.heappush(priority_queue, (key(new_comb), len(new_comb), new_comb, i+offset))  # O(log n)
+            heapq.heappush(priority_queue, (key(new_comb), len(new_comb), new_comb, i + offset))  # O(log n)
+
+
+def min_combinations_in_interval_iter_sorted(elements: Sequence[T], scores: Sequence[int], i_start: int,
+                                             i_end: int) -> List[Tuple[List[T], int]]:
+    """
+    Gives combinations that haves minimal sum of scores in given interval.
+    It is using method that iterates through sorted combinations until the interval is not reached and ends when the
+    interval is passed or the sum of scores is not minimal.
+
+    :param elements: elements for combinations
+    :param scores: score for each element
+    :param i_start: start of interval (min score sum)
+    :param i_end: end of interval (all score sums must be smaller than this)
+    :return: list of all combinations that haves minimal sum of scores, each combination is associated with the
+        score sum
+    """
+    res = []
+    for combination_indices, comb_score in sorted_combinations(range(len(elements)),
+                                                               lambda x: sum(scores[i] for i in x),
+                                                               yield_key=True):
+        if i_end <= comb_score or (len(res) > 0 and res[-1][1] < comb_score):
+            break
+
+        if i_start <= comb_score < i_end:
+            res.append(([elements[i] for i in combination_indices], comb_score))
+    return res
+
+
+def min_combinations_in_interval(elements: Sequence[T], scores: Sequence[int], i_start: int, i_end: int,
+                                 act_comb_len: Optional[int] = None, endings=None, endings_intervals=None) \
+        -> List[Tuple[List[T], int]]:
+    """
+    THIS FUNCTION IS STILL WORK IN PROGRESS!
+    Gives combinations that haves minimal sum of scores in given interval.
+
+    :param elements: elements for combinations
+    :param scores: score for each element
+    :param i_start: start of interval (min score sum)
+    :param i_end: end of interval (all score sums must be smaller than this)
+    :param act_comb_len: actual combination length that is used during recursion
+    :param endings: helping structure that haves saved interval endings that is used during recursion
+    :param endings_intervals: helping structure, storing intervals for each ending, that is used during recursion
+    :return: list of all combinations that haves minimal sum of scores, each combination is associated with the
+        score sum
+    """
+    max_comb_len = len(scores)
+
+    if endings is None or endings_intervals is None:
+        sorted_indices = arg_sort(scores)
+        elements_new, scores_new = [], []
+        for i in sorted_indices:
+            scores_new.append(scores[i])
+            elements_new.append(elements[i])
+
+        elements, scores = elements_new, scores_new
+
+        min_cum_sum = [0]
+        for s in scores:
+            min_cum_sum.append(min_cum_sum[-1] + s)
+
+        if i_start > min_cum_sum[-1]:
+            # out of maximal sum
+            return []
+
+        intervals = []  # stores interval starts/ends as tuple (min, max, remaining_comb_len, ele_index)
+        endings = []
+
+        for comb_len in range(max_comb_len):
+            for i, s in zip(range(len(scores))[comb_len:], scores[comb_len:]):
+                interval_min = s + min_cum_sum[comb_len]
+                interval_max = s + sum(scores[i - comb_len:i])
+                endings.append(interval_min)
+                endings.append(interval_max)
+
+                intervals.append((interval_min, interval_max, comb_len, i))
+
+        endings_tmp = []
+        endings_intervals = []
+        for e in sorted(set(endings)):
+            endings_tmp.append(e)
+            endings_intervals.append([])
+        endings = endings_tmp
+        for interval in intervals:
+            start_offset = bisect.bisect_left(endings, interval[0])
+            end_offset = bisect.bisect_right(endings, interval[1])
+            for i in range(start_offset, end_offset):
+                endings_intervals[i].append(interval)
+
+    if act_comb_len == 1:
+        # shortcut for single elements
+        start_offset = bisect.bisect_left(scores, i_start)
+        res = []
+        # we need to iterate from the start offset in order to be able to process multiple elements with the same score
+
+        for i in range(start_offset, len(scores)):
+            s = scores[i]
+            if not (i_start <= s < i_end) or (len(res) != 0 and res[-1][-1] != s):
+                break
+            res.append(([elements[i]], s))
+        return res
+
+    start_end_offset = bisect.bisect_left(endings, i_start)
+    res = []
+    for interval in endings_intervals[start_end_offset]:
+        if interval[0] < i_end:
+            # the bisect left search moved us to the end that must be equal or greater than the i_start,
+            # but at this end could lie an interval that is not in our range
+
+            if interval[0] == interval[1] and (interval[2] == 0 or interval[2] == interval[3]):
+                # interval[2] == 0 or interval[2] == interval[3] to prevent going there when we have multiple elements
+                # with the same score
+                e_of = interval[3] + 1
+                s_of = interval[3] - interval[2]
+                comb = (elements[s_of:e_of], interval[0])
+                if len(res) == 0 or res[0][1] == interval[0]:
+                    res.append(comb)
+                elif res[0][1] > interval[0]:
+                    # better than previous
+                    res = [comb]
+            else:
+                ele = elements[interval[3]]
+                ele_score = scores[interval[3]]
+                act_endings = []
+                act_endings_intervals = []
+                for e, inters in zip(endings, endings_intervals):
+                    passing_inter = []
+                    for inter in inters:
+                        if inter[2] <= interval[2] and inter[3] < interval[3]:
+                            passing_inter.append(inter)
+                    if len(passing_inter) > 0:
+                        act_endings.append(e)
+                        act_endings_intervals.append(passing_inter)
+
+                for c_ele, c_score in min_combinations_in_interval(elements[:interval[3]], scores[:interval[3]],
+                                                                   i_start - ele_score, i_end - ele_score, interval[2],
+                                                                   act_endings, act_endings_intervals):
+                    assign_score = ele_score + c_score
+                    c_ele.append(ele)
+                    comb = (c_ele, assign_score)
+                    if len(res) == 0 or res[0][1] == assign_score:
+                        res.append(comb)
+                    elif res[0][1] > assign_score:
+                        # better than previous
+                        res = [comb]
+
+    return res

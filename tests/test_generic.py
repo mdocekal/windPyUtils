@@ -5,11 +5,16 @@ Created on 31.01.20
 :author:     Martin Dočekal
 """
 import itertools
+import random
+import string
+import time
 import unittest
+from typing import Sequence, Tuple, FrozenSet, Set
 from unittest import TestCase
 
 from windpyutils.generic import sub_seq, RoundSequence, search_sub_seq, compare_pos_in_iterables, Batcher, BatcherIter, \
-    roman_2_int, int_2_roman, sorted_combinations
+    roman_2_int, int_2_roman, sorted_combinations, arg_sort, min_combinations_in_interval, \
+    min_combinations_in_interval_iter_sorted
 
 
 class TestSubSeq(unittest.TestCase):
@@ -233,7 +238,7 @@ class TestSortedCombinations(TestCase):
     def test_sorted_combinations_weights_are_sum(self):
         res = list(sorted_combinations(range(4), lambda x: sum(x)))
         gt = [
-            (0, ), (1, ), (0, 1), (2, ), (0, 2), (3, ), (0, 3), (1, 2), (0, 1, 2), (1, 3), (0, 1, 3), (2, 3),
+            (0,), (1,), (0, 1), (2,), (0, 2), (3,), (0, 3), (1, 2), (0, 1, 2), (1, 3), (0, 1, 3), (2, 3),
             (0, 2, 3), (1, 2, 3), (0, 1, 2, 3)
         ]
         self.assertSequenceEqual(res, gt)
@@ -241,10 +246,90 @@ class TestSortedCombinations(TestCase):
     def test_sorted_combinations_weights_are_sum_yield_key(self):
         res = list(sorted_combinations(range(4), lambda x: sum(x), yield_key=True))
         gt = [
-            ((0, ), 0), ((1, ), 1), ((0, 1), 1), ((2, ), 2), ((0, 2), 2), ((3, ), 3), ((0, 3), 3), ((1, 2), 3),
+            ((0,), 0), ((1,), 1), ((0, 1), 1), ((2,), 2), ((0, 2), 2), ((3,), 3), ((0, 3), 3), ((1, 2), 3),
             ((0, 1, 2), 3), ((1, 3), 4), ((0, 1, 3), 4), ((2, 3), 5), ((0, 2, 3), 5), ((1, 2, 3), 6), ((0, 1, 2, 3), 6)
         ]
         self.assertSequenceEqual(res, gt)
+
+
+class TestArgSort(TestCase):
+    def test_arg_sort_sorted(self):
+        self.assertSequenceEqual([0, 1, 2, 3, 4], arg_sort([50, 100, 200, 300, 400]))
+
+    def test_arg_sort_reversed(self):
+        self.assertSequenceEqual([2, 1, 0], arg_sort([8, 5, 2]))
+
+    def test_arg_sort_in_reverse(self):
+        self.assertSequenceEqual([0, 1, 2], arg_sort([8, 5, 2], reverse=True))
+
+    def test_arg_sort_general(self):
+        self.assertSequenceEqual([1, 3, 4, 2, 0], arg_sort([400, 50, 300, 100, 200]))
+
+
+class TestMinCombinationsInIntervalIterSorted(TestCase):
+    def setUp(self):
+        self.ref = min_combinations_in_interval_iter_sorted
+        self.f = self.ref
+
+    @staticmethod
+    def convert_combs(combs: Sequence[Tuple[Sequence[str], int]]) -> Set[Tuple[FrozenSet[str], int]]:
+        return set((frozenset(c[0]), c[1]) for c in combs)
+
+    def check_res(self, ref_combs: Sequence[Tuple[Sequence[str], int]], combs: Sequence[Tuple[Sequence[str], int]]):
+        ref_combs = self.convert_combs(ref_combs)
+        combs = self.convert_combs(combs)
+        self.assertEqual(ref_combs, combs)
+
+    def test_min_combinations_in_interval(self):
+        elements = ["1000e", "1e", "100e", "10e"]
+        scores = [1000, 1, 100, 10]
+        self.check_res([(["1e"], 1)], self.f(elements, scores, 1, 10))
+        self.check_res([(["1e"], 1)], self.f(elements, scores, 1, 9999999))
+        self.check_res([(["1e", "10e"], 11)], self.f(elements, scores, 11, 101))
+        self.check_res([], self.f(elements, scores, 1050, 1070))
+        self.check_res([(["1e", "10e", "100e", "1000e"], 1111)], self.f(elements, scores, 1111, 1112))
+
+    def test_single_element(self):
+        elements = ["1e", "100e", "10e"]
+        scores = [1, 100, 10]
+        self.check_res([(["1e", "10e", "100e"], 111)], self.f(elements, scores, 111, 112))
+        self.check_res([(["1e"], 1)], self.f(elements, scores, 1, 2))
+        self.check_res([(["10e"], 10)], self.f(elements, scores, 10, 11))
+
+    def test_multiple_with_same_score(self):
+        elements = ["a", "b", "c"]
+        scores = [1, 1, 1]
+        self.check_res([(["a"], 1), (["b"], 1), (["c"], 1)], self.f(elements, scores, 1, 2))
+        self.check_res([(["a", "b"], 2), (["b", "c"], 2), (["c", "a"], 2)], self.f(elements, scores, 2, 3))
+        self.check_res([(["a", "b", "c"], 3)], self.f(elements, scores, 3, 4))
+
+
+class TestMinCombinationsInInterval(TestMinCombinationsInIntervalIterSorted):
+    def setUp(self):
+        self.ref = min_combinations_in_interval_iter_sorted
+        self.f = min_combinations_in_interval
+        self.rand = random.Random(0)
+
+    def test_against_reference(self):
+        for _ in range(5):
+            for num_ele in [1, 3, 10, 15]:
+                elements = [random.choice(string.ascii_letters) for _ in range(num_ele)]
+                scores = [self.rand.randint(0, 100) for _ in range(num_ele)]
+
+                num_of_selected = self.rand.randint(1, len(elements))
+                # we are doing selection with repetition because we don't care
+                selected_scores = sum(random.choice(scores) for _ in range(num_of_selected))
+
+                i_start = selected_scores
+                i_end = i_start + self.rand.randint(1, selected_scores)
+
+                #start = time.time()
+                ref_combs = self.ref(elements, scores, i_start, i_end)
+                #print("ref_combs", time.time() - start)
+                #start = time.time()
+                combs = self.f(elements, scores, i_start, i_end)
+                #print("combs", time.time() - start)
+                self.check_res(ref_combs, combs)
 
 
 if __name__ == '__main__':

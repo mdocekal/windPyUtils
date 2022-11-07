@@ -17,7 +17,7 @@ from unittest import TestCase
 
 from windpyutils.files import RandomLineAccessFile, MapAccessFile, MemoryMappedRandomLineAccessFile, \
     MutableRandomLineAccessFile, MutableMemoryMappedRandomLineAccessFile, TmpPool, JsonRecord, Record, RecordFile, \
-    MemoryMappedRecordFile, MutableRecordFile, MutableMemoryMappedRecordFile
+    MemoryMappedRecordFile, MutableRecordFile, MutableMemoryMappedRecordFile, CSVRecord, TSVRecord
 from windpyutils.parallel.own_proc_pools import FunctorPool, FunctorWorker
 
 path_to_this_script_file = os.path.dirname(os.path.realpath(__file__))
@@ -412,7 +412,48 @@ class TestJsonRecord(unittest.TestCase):
         representation = r.save()
         d = json.loads(representation)
         self.assertEqual({"mass": 10.2, "velocity": 120}, d)
+        r = OwnJsonRecord(20.2, 6)
+        representation = r.save()
+        d = json.loads(representation)
+        self.assertEqual({"mass": 20.2, "velocity": 6}, d)
 
+
+@dataclass
+class OwnCSVRecord(CSVRecord):
+    mass: float
+    velocity: float
+
+
+class TestCSVRecord(unittest.TestCase):
+    def test_load(self) -> None:
+        r = OwnCSVRecord.load('10.2,120')
+        self.assertEqual(10.2, r.mass)
+        self.assertEqual(120, r.velocity)
+
+    def test_repr(self):
+        r = OwnCSVRecord(10.2, 120)
+        self.assertEqual('10.2,120\r\n', r.save())
+        r = OwnTSVRecord(20.2, 6)
+        self.assertEqual('20.2\t6\r\n', r.save())
+
+
+@dataclass
+class OwnTSVRecord(TSVRecord):
+    mass: float
+    velocity: float
+
+
+class TestTSVRecord(unittest.TestCase):
+    def test_load(self) -> None:
+        r = OwnTSVRecord.load('10.2\t120')
+        self.assertEqual(10.2, r.mass)
+        self.assertEqual(120, r.velocity)
+
+    def test_repr(self):
+        r = OwnTSVRecord(10.2, 120)
+        self.assertEqual('10.2\t120\r\n', r.save())
+        r = OwnTSVRecord(20.2, 6)
+        self.assertEqual('20.2\t6\r\n', r.save())
 
 @dataclass
 class IntRecord(Record):
