@@ -11,7 +11,7 @@ from abc import abstractmethod, ABC
 from multiprocessing import Process
 from multiprocessing.context import BaseContext
 from multiprocessing.process import BaseProcess
-from typing import TypeVar, Iterable, Generator, List, Generic, Optional
+from typing import TypeVar, Iterable, Generator, List, Generic, Optional, Union
 
 from windpyutils.buffers import Buffer
 
@@ -119,19 +119,38 @@ class FunctorPool:
     A pool that uses given workers.
     """
 
-    def __init__(self, workers: List[BaseFunctorWorker[T, R]], context: Optional[BaseContext] = None):
+    def __init__(self, workers: List[BaseFunctorWorker[T, R]], context: Optional[BaseContext] = None,
+                 work_queue_maxsize: Optional[Union[int, float]] = 1.0,
+                 results_queue_maxsize: Optional[Union[int, float]] = None):
         """
         Initialization of pool.
 
         :param workers: parallel workers.
         :param context: On which multiprocessing context this pool should operate.
+        :param work_queue_maxsize: Max size of queue that is used for sending work to workers.
+            If None all work will be passed to queue at once.
+            If not None it will try to fill up the queue and when it is full it will read the results in the meantime.
+                float the max size will be: int(workers * work_queue_maxsize)
+                int the max size is just work_queue_maxsize
+        :param results_queue_maxsize: Max size of queue that is used to deliver results to main process.
+            float the max size will be: int(workers * results_queue_maxsize)
+            int the max size is just results_queue_maxsize
+
+            Due to memory usage it might be good idea to put limit on results as it might happen that the work queue
+            will never be full which causes that all the results will be read at the end.
         """
 
         if context is None:
             context = multiprocessing.get_context()
 
-        self._work_queue = context.Queue(len(workers))
-        self._results_queue = context.Queue()
+        if isinstance(work_queue_maxsize, float):
+            work_queue_maxsize = int(len(workers) * work_queue_maxsize)
+
+        if isinstance(results_queue_maxsize, float):
+            results_queue_maxsize = int(len(workers) * results_queue_maxsize)
+
+        self._work_queue = context.Queue() if work_queue_maxsize is None else context.Queue(work_queue_maxsize)
+        self._results_queue = context.Queue() if results_queue_maxsize is None else context.Queue(results_queue_maxsize)
         self.procs = workers
 
         for i, p in enumerate(self.procs):
@@ -189,20 +208,22 @@ class FunctorPool:
         data_cnt = 0
         finished_cnt = 0
         for i, chunk in enumerate(chunking(data)):
-            self._work_queue.put((i, chunk))
-            data_cnt += 1
-
-            try:
-                # read the results
-                while True:
-                    res_i, res_chunk = self._results_queue.get(False)
-                    for ch in buffer(res_i, res_chunk):
-                        finished_cnt += 1
-                        for x in ch:
-                            yield x
-
-            except queue.Empty:
-                pass
+            while True:
+                try:
+                    self._work_queue.put((i, chunk), block=False)
+                    data_cnt += 1
+                    break
+                except queue.Full:
+                    try:
+                        # read the results
+                        while True:
+                            res_i, res_chunk = self._results_queue.get(False)
+                            for ch in buffer(res_i, res_chunk):
+                                finished_cnt += 1
+                                for x in ch:
+                                    yield x
+                    except queue.Empty:
+                        pass
 
         while finished_cnt < data_cnt:
             res_i, res_chunk = self._results_queue.get()

@@ -170,6 +170,7 @@ class TestFunctorPool(unittest.TestCase):
         else:
             self.skipTest("This test can only be run on the multi cpu device.")
 
+
     def test_until_all_ready(self):
         if os.cpu_count() > 1:
             for w in self.workers:
