@@ -5,7 +5,7 @@ Created on 09.04.20
 :author:     Martin Dočekal
 """
 import unittest
-from collections import Sequence
+from typing import Sequence
 
 from windpyutils.structures.span_set import SpanSet, SpanSetExactEqRelation, \
     SpanSetPartOfEqRelation, SpanSetIncludesEqRelation, SpanSetOverlapsEqRelation
