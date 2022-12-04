@@ -279,7 +279,7 @@ class TestFactoryFunctorPool(unittest.TestCase):
     def test_imap(self):
         if os.cpu_count() > 1:
             data = [i for i in range(10000)]
-            with FactoryFunctorPool(self.workers, self.factory, self.context) as pool:
+            with FactoryFunctorPool(self.workers, self.factory, None) as pool:
                 results = list(pool.imap(data))
 
             self.assertListEqual([i * 2 for i in data], results)

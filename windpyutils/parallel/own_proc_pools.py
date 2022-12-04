@@ -346,8 +346,8 @@ class FactoryFunctorPool(FunctorPool):
             self.pool._replace_queue.put(None)
             super().stop()
 
-    def __init__(self, workers: int, workers_factory: Optional[FunctorWorkerFactory] = None,
-                 context: Optional[BaseContext] = None, work_queue_maxsize: Optional[Union[int, float]] = 1.0,
+    def __init__(self, workers: int, workers_factory: FunctorWorkerFactory, context: Optional[BaseContext] = None,
+                 work_queue_maxsize: Optional[Union[int, float]] = 1.0,
                  results_queue_maxsize: Optional[Union[int, float]] = None):
         """
         Initialization of pool.
@@ -369,6 +369,9 @@ class FactoryFunctorPool(FunctorPool):
             will never be full which causes that all the results will be read at the end.
         :raise ValueError: when attributes are invalid
         """
+        if context is None:
+            context = multiprocessing.get_context()
+
         workers = [workers_factory.create() for _ in range(workers)]
 
         self._workers_factory = workers_factory
