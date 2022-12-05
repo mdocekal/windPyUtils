@@ -355,7 +355,8 @@ class FactoryFunctorPool(FunctorPool):
 
     def __init__(self, workers: int, workers_factory: FunctorWorkerFactory, context: Optional[BaseContext] = None,
                  work_queue_maxsize: Optional[Union[int, float]] = 1.0,
-                 results_queue_maxsize: Optional[Union[int, float]] = None):
+                 results_queue_maxsize: Optional[Union[int, float]] = None, verbose: float = False,
+                 join_timeout: Optional[int] = None):
         """
         Initialization of pool.
 
@@ -374,6 +375,8 @@ class FactoryFunctorPool(FunctorPool):
 
             Due to memory usage it might be good idea to put limit on results as it might happen that the work queue
             will never be full which causes that all the results will be read at the end.
+        :param verbose: Determines whether information messages should be shown.
+        :param join_timeout: Timout for process joining.
         :raise ValueError: when attributes are invalid
         """
         if context is None:
@@ -384,7 +387,7 @@ class FactoryFunctorPool(FunctorPool):
         self._workers_factory = workers_factory
         self._replace_queue = context.Queue()
 
-        super().__init__(workers, context, work_queue_maxsize, results_queue_maxsize)
+        super().__init__(workers, context, work_queue_maxsize, results_queue_maxsize, verbose, join_timeout)
 
     def _init_process(self, p: BaseFunctorWorker):
         super()._init_process(p)
