@@ -7,7 +7,6 @@ This module contains multiprocessing pool that allows to use own process classes
 """
 import math
 import multiprocessing
-import queue
 import threading
 from abc import abstractmethod, ABC
 from multiprocessing import Process
@@ -87,6 +86,7 @@ class BaseFunctorWorker(BaseProcess, Generic[T, R]):
             self.begin_finished.clear()
             self.begin()
             self.begin_finished.set()
+
             while self.max_chunks_per_worker > 0:
                 q_item = self.work_queue.get()
 
@@ -95,7 +95,6 @@ class BaseFunctorWorker(BaseProcess, Generic[T, R]):
                     break
 
                 i, data_list = q_item
-
                 self.results_queue.put((i, [self(x) for x in data_list]))
                 self.max_chunks_per_worker -= 1
             else:
@@ -253,7 +252,6 @@ class FunctorPool:
 
     def __enter__(self) -> "FunctorPool":
         for p in self.procs:
-            p.daemon = True
             p.start()
         return self
 
@@ -277,7 +275,7 @@ class FunctorPool:
         honors the order
 
         :param data: iterable of data that should be passed to functor
-        :param chunk_size: size of a chunk that is send to a process
+        :param chunk_size: size of a chunk that is sent to a process
         :return: generator of results
         """
 
@@ -339,7 +337,6 @@ class FactoryFunctorPool(FunctorPool):
                 p = self.pool._workers_factory.create()
                 self.pool._init_process(p)
                 self.pool.procs[replace_index] = p
-                self.pool.procs[replace_index].daemon = True
                 self.pool.procs[replace_index].start()
 
         def stop(self):

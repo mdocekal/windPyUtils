@@ -6,11 +6,12 @@ Created on 04.12.21
 """
 import multiprocessing
 import os
+import time
 import unittest
 import math
 from multiprocessing.context import BaseContext
 from multiprocessing.queues import Queue
-from typing import List
+from typing import List, Optional
 
 from windpyutils.parallel.own_proc_pools import FunctorPool, FunctorWorker, BaseFunctorWorker, FunctorWorkerFactory, \
     FactoryFunctorPool
@@ -39,13 +40,17 @@ class BaseMockWorker(BaseFunctorWorker):
 
 
 class MockWorker(FunctorWorker):
-    def __init__(self, max_chunks_per_worker: float = math.inf):
+    def __init__(self, max_chunks_per_worker: float = math.inf,
+                 wait: Optional[float] = None):
         super().__init__(max_chunks_per_worker)
         self.scaler = None
         self.begin_called = multiprocessing.Event()
         self.end_called = multiprocessing.Event()
+        self.wait = wait
 
     def __call__(self, inp: int) -> int:
+        if self.wait is not None:
+            time.sleep(self.wait)
         return inp*2
 
     def begin(self):
@@ -88,13 +93,16 @@ class BaseMockWorkerLargeData(BaseFunctorWorker):
 
 
 class MockWorkerLargeData(FunctorWorker):
-    def __init__(self, max_chunks_per_worker: float = math.inf):
+    def __init__(self, max_chunks_per_worker: float = math.inf, wait: Optional[float] = None):
         super().__init__(max_chunks_per_worker)
         self.scaler = None
         self.begin_called = multiprocessing.Event()
         self.end_called = multiprocessing.Event()
+        self.wait = wait
 
     def __call__(self, inp: int) -> List[int]:
+        if self.wait is not None:
+            time.sleep(self.wait)
         return [999999] * 9999 + [inp * 2]
 
     def begin(self):
@@ -106,13 +114,14 @@ class MockWorkerLargeData(FunctorWorker):
 
 class MockFunctorWorkerFactory(FunctorWorkerFactory):
 
-    def __init__(self, worker_cls=MockWorker, max_chunks_per_worker: float = math.inf):
+    def __init__(self, worker_cls=MockWorker, max_chunks_per_worker: float = math.inf, wait: Optional[float] = None):
         self.created_workers = []
         self.worker_cls = worker_cls
         self.max_chunks_per_worker = max_chunks_per_worker
+        self.wait = wait
 
     def create(self) -> BaseFunctorWorker:
-        w = self.worker_cls(self.max_chunks_per_worker)
+        w = self.worker_cls(self.max_chunks_per_worker, self.wait)
         self.created_workers.append(w)
         return w
 
@@ -184,7 +193,6 @@ class TestFunctorPool(unittest.TestCase):
                 self.assertTrue(w.end_called.is_set())
         else:
             self.skipTest("This test can only be run on the multi cpu device.")
-
 
     def test_until_all_ready(self):
         if os.cpu_count() > 1:
@@ -334,14 +342,18 @@ class TestFactoryFunctorPool(unittest.TestCase):
 
     def test_replace(self):
         if os.cpu_count() > 1:
+            self.factory.worker_cls = MockWorkerLargeData
             data = [i for i in range(10000)]
             self.factory.max_chunks_per_worker = 10
+            self.factory.wait = 0.001
             with FactoryFunctorPool(self.workers, self.factory, self.context) as fm:
-                results = list(fm.imap(data, chunk_size=100))
+                results = list(x[-1] for x in fm.imap(data, 100))
                 self.assertListEqual(results, [i * 2 for i in data])
 
-            self.assertEqual(12, len(self.factory.created_workers))
-            # len(data)/1000 + 2(this two will only receive stop signal) -> 12
+            self.assertGreaterEqual(12, len(self.factory.created_workers))
+            self.assertLessEqual(10, len(self.factory.created_workers))
+            # it must be in that interval as it is possible that at most two processes will ask for replace at the
+            # very end, before the pool is shutdown
             for w in self.factory.created_workers:
                 self.assertTrue(w.begin_called.is_set())
                 self.assertTrue(w.end_called.is_set())
