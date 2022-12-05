@@ -7,6 +7,7 @@ This module contains multiprocessing pool that allows to use own process classes
 """
 import math
 import multiprocessing
+import sys
 import threading
 from abc import abstractmethod, ABC
 from multiprocessing import Process
@@ -201,7 +202,8 @@ class FunctorPool:
 
     def __init__(self, workers: List[BaseFunctorWorker[T, R]], context: Optional[BaseContext] = None,
                  work_queue_maxsize: Optional[Union[int, float]] = 1.0,
-                 results_queue_maxsize: Optional[Union[int, float]] = None):
+                 results_queue_maxsize: Optional[Union[int, float]] = None, verbose: float = False,
+                 join_timeout: Optional[int] = None):
         """
         Initialization of pool.
 
@@ -214,6 +216,8 @@ class FunctorPool:
         :param results_queue_maxsize: Max size of queue that is used to deliver results to main process.
             float the max size will be: int(workers * results_queue_maxsize)
             int the max size is just results_queue_maxsize
+        :param verbose: Determines whether information messages should be shown.
+        :param join_timeout: Timout for process joining.
         """
 
         if context is None:
@@ -235,6 +239,9 @@ class FunctorPool:
 
         for p in self.procs:
             self._init_process(p)
+
+        self.verbose = verbose
+        self.join_timeout = join_timeout
 
     def _init_process(self, p: BaseFunctorWorker):
         """
@@ -259,7 +266,10 @@ class FunctorPool:
         for _ in range(len(self.procs)):
             self._work_queue.put(None)
         for p in self.procs:
-            p.join()
+            if p.exitcode is None:
+                p.join(timeout=self.join_timeout)
+                if p.exitcode is None and self.verbose:
+                    print(f"Process with wid {p.wid} was not joined and is still running.", file=sys.stderr)
 
     def until_all_ready(self):
         """
