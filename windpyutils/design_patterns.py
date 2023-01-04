@@ -6,7 +6,7 @@ This module contains implementaton of some common design patterns.
 :author:     Martin Dočekal
 """
 from functools import wraps
-from typing import Dict, Callable
+from typing import Dict, Callable, Hashable
 
 
 class Singleton(type):
@@ -47,14 +47,14 @@ class Observable(object):
     """
 
     @staticmethod
-    def event(tag, pass_arguments=False):
+    def event(tag: Hashable, pass_arguments=False):
         """
         Use this decorator to mark methods that could be observed.
         """
         return Observable._event(tag, pass_arguments)
 
     @staticmethod
-    def _event(tag, pass_arguments=False):
+    def _event(tag: Hashable, pass_arguments=False):
         """
         Use this decorator to mark methods that could be observed.
         """
@@ -89,7 +89,6 @@ class Observable(object):
         Set new observers.
 
         :param observers: New observers.
-        :type observers:Dict[str,Callable]
         """
 
         self.__observers = observers
@@ -100,27 +99,23 @@ class Observable(object):
         """
         self.__observers = {}
 
-    def register_observer(self, event_tag, observer):
+    def register_observer(self, event_tag: Hashable, observer: Callable):
         """
         Register new observer for observable method (_event).
 
         :param event_tag: The tag that is passed as parameter for _event decorator.
-        :type event_tag: str
         :param observer: Method that should be called
-        :type observer: Callable
         """
 
         s = self.__observers.setdefault(event_tag, set())
         s.add(observer)
 
-    def unregister_observer(self, event_tag, observer):
+    def unregister_observer(self, event_tag: Hashable, observer: Callable):
         """
         Unregister observer for observable method (_event).
 
         :param event_tag: The tag that is passed as parameter for _event decorator.
-        :type event_tag: str
         :param observer: Method that should no longer be called
-        :type observer: Callable
         """
 
         try:
@@ -128,12 +123,11 @@ class Observable(object):
         except KeyError:
             pass
 
-    def __notify(self, event_tag, *arg, **kw):
+    def __notify(self, event_tag: Hashable, *arg, **kw):
         """
         Notify all obervers for given method.
 
         :param event_tag: The tag that is passed as parameter for _event decorator.
-        :type event_tag: str
         """
         try:
             for o in self.__observers[event_tag]:
