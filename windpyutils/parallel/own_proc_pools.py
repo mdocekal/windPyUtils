@@ -103,8 +103,6 @@ class BaseFunctorWorker(BaseProcess, Generic[T, R]):
                     self.replace_queue.put(self.wid)
 
         finally:
-            self.work_queue.close()
-            self.results_queue.close()
             self.end()
 
 
@@ -202,7 +200,7 @@ class FunctorPool:
 
     def __init__(self, workers: List[BaseFunctorWorker[T, R]], context: Optional[BaseContext] = None,
                  work_queue_maxsize: Optional[Union[int, float]] = 1.0,
-                 results_queue_maxsize: Optional[Union[int, float]] = None, verbose: float = False,
+                 results_queue_maxsize: Optional[Union[int, float]] = None, verbose: bool = False,
                  join_timeout: Optional[int] = None):
         """
         Initialization of pool.
@@ -325,12 +323,14 @@ class FactoryFunctorPool(FunctorPool):
         Thread for replacing workers.
         """
 
-        def __init__(self, pool: "FactoryFunctorPool"):
+        def __init__(self, pool: "FactoryFunctorPool", verbose: bool = False):
             """
             :param pool: pool that is using this thread to send work
+            :param verbose: Determines whether information messages should be shown.
             """
             super().__init__()
             self.pool = pool
+            self.verbose = verbose
 
         def run(self) -> None:
             while not self.stop_event.is_set():
@@ -340,6 +340,9 @@ class FactoryFunctorPool(FunctorPool):
                 for i, p in enumerate(self.pool.procs):
                     if p.wid == replace_id:
                         replace_index = i
+                        p.join(timeout=self.pool.join_timeout)
+                        if p.exitcode is None and self.verbose:
+                            print(f"Process with wid {p.wid} was not joined and is still running.", file=sys.stderr)
                         break
                 else:
                     raise RuntimeError(f"Unknown world id {replace_id}. I am not able to replace this process.")
@@ -355,7 +358,7 @@ class FactoryFunctorPool(FunctorPool):
 
     def __init__(self, workers: int, workers_factory: FunctorWorkerFactory, context: Optional[BaseContext] = None,
                  work_queue_maxsize: Optional[Union[int, float]] = 1.0,
-                 results_queue_maxsize: Optional[Union[int, float]] = None, verbose: float = False,
+                 results_queue_maxsize: Optional[Union[int, float]] = None, verbose: bool = False,
                  join_timeout: Optional[int] = None):
         """
         Initialization of pool.
@@ -403,5 +406,5 @@ class FactoryFunctorPool(FunctorPool):
         :return: generator of results
         """
 
-        with self.ReplaceWorkerThread(self):
+        with self.ReplaceWorkerThread(self, self.verbose):
             yield from super().imap(data, chunk_size)

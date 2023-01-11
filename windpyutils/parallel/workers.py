@@ -77,18 +77,14 @@ class FunRunner(Process):
         """
         Run the process.
         """
-        try:
-            while True:
-                q_item = self.WORK_QUEUE.get()
+        while True:
+            q_item = self.WORK_QUEUE.get()
 
-                if q_item is None:
-                    # all done
-                    break
+            if q_item is None:
+                # all done
+                break
 
-                i, data_list = q_item
+            i, data_list = q_item
 
-                self.RESULTS_QUEUE.put((i, [self.pf(x) for x in data_list]))
+            self.RESULTS_QUEUE.put((i, [self.pf(x) for x in data_list]))
 
-        finally:
-            self.WORK_QUEUE.close()
-            self.RESULTS_QUEUE.close()

@@ -38,21 +38,17 @@ class FunctorWorker(Process):
         """
         Run the process.
         """
-        try:
-            while True:
-                q_item = self._work_queue.get()
 
-                if q_item is None:
-                    # all done
-                    break
+        while True:
+            q_item = self._work_queue.get()
 
-                i, data_list = q_item
+            if q_item is None:
+                # all done
+                break
 
-                self._results_queue.put((i, [self.pf(x) for x in data_list]))
+            i, data_list = q_item
 
-        finally:
-            self._work_queue.close()
-            self._results_queue.close()
+            self._results_queue.put((i, [self.pf(x) for x in data_list]))
 
 
 class FunctorMap:
