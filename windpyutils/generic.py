@@ -471,3 +471,17 @@ def min_combinations_in_interval(elements: Sequence[T], scores: Sequence[int], i
                         res = [comb]
 
     return res
+
+
+class Wrapper:
+    """
+    Wraps given object and acts like it.
+    """
+    def __init__(self, obj: Any):
+        """
+        :param obj: object to wrap
+        """
+        self.wrapped_obj = obj
+
+    def __getattr__(self, attr):
+        return getattr(self.wrapped_obj, attr)

@@ -14,7 +14,7 @@ from unittest import TestCase
 
 from windpyutils.generic import sub_seq, RoundSequence, search_sub_seq, compare_pos_in_iterables, Batcher, BatcherIter, \
     roman_2_int, int_2_roman, sorted_combinations, arg_sort, min_combinations_in_interval, \
-    min_combinations_in_interval_iter_sorted
+    min_combinations_in_interval_iter_sorted, Wrapper
 
 
 class TestSubSeq(unittest.TestCase):
@@ -330,6 +330,45 @@ class TestMinCombinationsInInterval(TestMinCombinationsInIntervalIterSorted):
                 combs = self.f(elements, scores, i_start, i_end)
                 #print("combs", time.time() - start)
                 self.check_res(ref_combs, combs)
+
+
+class ForWrapping:
+    def __init__(self, value):
+        self.value = value
+
+    def get_value(self):
+        return self.value
+
+    def plus(self, other):
+        return self.value + other.value
+
+
+class TestWrapper(TestCase):
+
+    def setUp(self) -> None:
+        self.wrapper = Wrapper(ForWrapping(7))
+
+    def test_value(self):
+        self.assertEqual(7, self.wrapper.value)
+
+    def test_get_value(self):
+        self.assertEqual(7, self.wrapper.get_value())
+
+    def test_plus(self):
+        self.assertEqual(14, self.wrapper.plus(ForWrapping(7)))
+
+    def test_change_wrapped_object(self):
+        self.wrapper.wrapped_obj = ForWrapping(8)
+        self.assertEqual(8, self.wrapper.value)
+        self.assertEqual(8, self.wrapper.get_value())
+
+    def test_missing_attribute(self):
+        with self.assertRaises(AttributeError):
+            self.wrapper.missing_attribute
+
+    def test_missing_method(self):
+        with self.assertRaises(AttributeError):
+            self.wrapper.missing_method()
 
 
 if __name__ == '__main__':
