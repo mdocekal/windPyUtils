@@ -17,7 +17,7 @@ from contextlib import nullcontext
 from dataclasses import dataclass, asdict, fields
 from io import StringIO
 from typing import Union, Dict, Any, Type, List, Optional, Sequence, MutableSequence, TextIO, Generator, Iterable, \
-    TypeVar, Generic
+    TypeVar, Generic, Mapping, IO
 
 C = TypeVar('C')  # type of line content
 
@@ -893,7 +893,7 @@ class TmpPool:
         self._created_files = self._manager.list() if self._multi_proc else []
 
 
-class FilePool:
+class FilePool(Mapping[str, IO]):
     """
     Pool of files. It is used to open and close multiple files simultaneously by one shared context manager.
     """
@@ -907,7 +907,7 @@ class FilePool:
         """
         self._files = files
         self._mode = mode
-        self._file_handles = None
+        self.file_handles = None
 
     def __enter__(self) -> "FilePool":
         return self.open()
@@ -916,10 +916,14 @@ class FilePool:
         self.close()
 
     def __iter__(self):
-        return iter(self._file_handles)
+        if self.file_handles is None:
+            raise RuntimeError("Firstly open the pool.")
+        return iter(self.file_handles)
 
     def __len__(self):
-        return len(self._file_handles)
+        if self.file_handles is None:
+            raise RuntimeError("Firstly open the pool.")
+        return len(self.file_handles)
 
     def __getitem__(self, path: str):
         """
@@ -929,11 +933,10 @@ class FilePool:
         :return: file handle
         :raises KeyError: if file is not in pool
         """
-        for f in self._file_handles:
-            if f.name == path:
-                return f
-        else:
-            raise KeyError(f"File {path} is not in pool.")
+        if self.file_handles is None:
+            raise RuntimeError("Firstly open the pool.")
+
+        return self.file_handles[path]
 
     def open(self) -> "FilePool":
         """
@@ -941,13 +944,14 @@ class FilePool:
 
         :return: self
         """
-        self._file_handles = [open(f, self._mode) for f in self._files]
+        self.file_handles = {f: open(f, self._mode) for f in self._files}
         return self
 
     def close(self):
         """
         Close all files in pool.
         """
-        for f in self._file_handles:
+        for f in self.file_handles.values():
             f.close()
 
+        self.file_handles = None

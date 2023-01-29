@@ -17,7 +17,7 @@ from unittest import TestCase
 
 from windpyutils.files import RandomLineAccessFile, MapAccessFile, MemoryMappedRandomLineAccessFile, \
     MutableRandomLineAccessFile, MutableMemoryMappedRandomLineAccessFile, TmpPool, JsonRecord, Record, RecordFile, \
-    MemoryMappedRecordFile, MutableRecordFile, MutableMemoryMappedRecordFile, CSVRecord, TSVRecord
+    MemoryMappedRecordFile, MutableRecordFile, MutableMemoryMappedRecordFile, CSVRecord, TSVRecord, FilePool
 from windpyutils.parallel.own_proc_pools import FunctorPool, FunctorWorker
 
 path_to_this_script_file = os.path.dirname(os.path.realpath(__file__))
@@ -100,7 +100,7 @@ class TestRandomLineAccessFile(unittest.TestCase):
         random.shuffle(indices)
 
         with self.lines_file as lines:
-            self.assertListEqual([i for i in range(10, 20)],  [int(x) for x in lines[10:20]])
+            self.assertListEqual([i for i in range(10, 20)], [int(x) for x in lines[10:20]])
             self.assertListEqual([i for i in range(10, 20, 2)], [int(x) for x in lines[10:20:2]])
             self.assertListEqual([i for i in range(900)], [int(x) for x in lines[:-100]])
         self.assertFalse(self.lines_file.dirty)
@@ -120,7 +120,7 @@ class TestRandomLineAccessFileFromKnownIndex(TestRandomLineAccessFile):
         lines_offsets = []
         for i in range(1000):
             lines_offsets.append(offset)
-            offset += len(str(i))+1
+            offset += len(str(i)) + 1
         self.lines_file = RandomLineAccessFile(file_with_line_numbers, lines_offsets)
 
 
@@ -205,7 +205,7 @@ class TestMutableRandomLineAccessFile(TestRandomLineAccessFile):
         out = StringIO()
         with self.lines_file:
             self.lines_file.save(out)
-            self.assertEqual("\n".join(self.gt)+"\n", out.getvalue())
+            self.assertEqual("\n".join(self.gt) + "\n", out.getvalue())
             self.assertFalse(self.lines_file.dirty)
 
     def test_save_path(self):
@@ -455,6 +455,7 @@ class TestTSVRecord(unittest.TestCase):
         r = OwnTSVRecord(20.2, 6)
         self.assertEqual('20.2\t6\r\n', r.save())
 
+
 @dataclass
 class IntRecord(Record):
     num: int
@@ -662,7 +663,41 @@ class TestMutableMemoryMappedRecordFile(TestMutableRandomLineAccessFile):
         self.record_file = MutableMemoryMappedRecordFile(file_with_line_numbers, IntRecord)
 
 
+class TestFilePool(TestCase):
+    def setUp(self) -> None:
+        fixtures_path = Path(path_to_this_script_file) / "fixtures"
+        self.paths_to_files = [str(fixtures_path / "file_1.txt"), str(fixtures_path / "file_2.txt"),
+                               str(fixtures_path / "file_3.txt")]
+        self.pool = FilePool(self.paths_to_files)
+
+    def test_len(self):
+        with self.assertRaises(RuntimeError):
+            len(self.pool)
+
+        with self.pool:
+            self.assertEqual(3, len(self.pool))
+
+    def test_iter(self):
+        with self.assertRaises(RuntimeError):
+            iter(self.pool)
+        with self.pool:
+            self.assertSequenceEqual(self.paths_to_files, list(x for x in self.pool))
+
+    def test__getitem__(self):
+        with self.assertRaises(RuntimeError):
+            self.pool[0]
+        with self.pool:
+            self.assertEqual(self.paths_to_files[0], self.pool[self.paths_to_files[0]].name)
+            self.assertEqual(self.paths_to_files[1], self.pool[self.paths_to_files[1]].name)
+            self.assertEqual(self.paths_to_files[2], self.pool[self.paths_to_files[2]].name)
+
+    def test_read(self):
+        with self.pool:
+            self.assertEqual("file 1", self.pool[self.paths_to_files[0]].read().rstrip("\n"))
+            self.assertEqual("file 2", self.pool[self.paths_to_files[1]].read().rstrip("\n"))
+            self.assertEqual("file 3", self.pool[self.paths_to_files[2]].read().rstrip("\n"))
+
+
+
 if __name__ == '__main__':
     unittest.main()
-
-

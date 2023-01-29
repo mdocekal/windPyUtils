@@ -11,7 +11,7 @@ with open('README.md') as readme_file:
 
 setup_args = dict(
     name='windpyutils',
-    version='2.0.28',
+    version='2.0.29',
     description='Useful tools for Python projects.',
     long_description_content_type="text/markdown",
     long_description=README,
