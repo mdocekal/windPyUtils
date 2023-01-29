@@ -891,3 +891,63 @@ class TmpPool:
                 pass
 
         self._created_files = self._manager.list() if self._multi_proc else []
+
+
+class FilePool:
+    """
+    Pool of files. It is used to open and close multiple files simultaneously by one shared context manager.
+    """
+
+    def __init__(self, files: Iterable[str], mode: str = "r"):
+        """
+        Create new file pool.
+
+        :param files: iterable of file path
+        :param mode: mode in which files will be opened
+        """
+        self._files = files
+        self._mode = mode
+        self._file_handles = None
+
+    def __enter__(self) -> "FilePool":
+        return self.open()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def __iter__(self):
+        return iter(self._file_handles)
+
+    def __len__(self):
+        return len(self._file_handles)
+
+    def __getitem__(self, path: str):
+        """
+        Get file handle associated to given path.
+
+        :param path: path to file
+        :return: file handle
+        :raises KeyError: if file is not in pool
+        """
+        for f in self._file_handles:
+            if f.name == path:
+                return f
+        else:
+            raise KeyError(f"File {path} is not in pool.")
+
+    def open(self) -> "FilePool":
+        """
+        Open all files in pool.
+
+        :return: self
+        """
+        self._file_handles = [open(f, self._mode) for f in self._files]
+        return self
+
+    def close(self):
+        """
+        Close all files in pool.
+        """
+        for f in self._file_handles:
+            f.close()
+
