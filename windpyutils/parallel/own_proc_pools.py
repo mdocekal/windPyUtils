@@ -99,6 +99,8 @@ class BaseFunctorWorker(BaseProcess, Generic[T, R]):
                 self.results_queue.put((i, [self(x) for x in data_list]))
                 self.max_chunks_per_worker -= 1
             else:
+                self.results_queue.close()
+                self.results_queue.join_thread()
                 if self.replace_queue is not None:
                     self.replace_queue.put(self.wid)
 
