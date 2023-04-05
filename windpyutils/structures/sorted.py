@@ -30,7 +30,15 @@ class SortedSet(MutableSet, Generic[T]):
 
         :param init_values: this values will be used for initialization
         """
-        self._values = [] if init_values is None else sorted(init_values)
+        self._values = []
+
+        if init_values is not None:
+            sorted_vals = sorted(init_values)
+            # check uniqueness
+            self._values.append(sorted_vals[0])
+            for i in range(1, len(sorted_vals)):
+                if sorted_vals[i] != sorted_vals[i - 1]:
+                    self._values.append(sorted_vals[i])
 
     def add(self, value: T) -> None:
         insert_index, already_in = self.insertions_index(value)

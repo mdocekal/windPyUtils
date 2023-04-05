@@ -17,6 +17,7 @@ class TestSortedSet(TestCase):
     def test_init(self):
         self.assertSequenceEqual([], list(self.empty))
         self.assertSequenceEqual([7, 8, 9, 10], list(self.filled))
+        self.assertSequenceEqual([7, 8, 9, 10], list(SortedSet([10, 10, 9, 9, 8, 8, 7, 7])))
 
     def test_len(self):
         self.assertEqual(0, len(self.empty))
