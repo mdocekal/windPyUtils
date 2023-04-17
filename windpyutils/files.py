@@ -184,13 +184,14 @@ class RandomLineAccessFile(BaseRandomLineAccessFile[str]):
     :vartype file: Optional[TextIO]
     """
 
-    def __init__(self, path_to: str, line_offsets: Optional[Sequence[int]] = None):
+    def __init__(self, path_to: str, line_offsets: Optional[Union[Sequence[int], str]] = None):
         """
         initialization
         Makes just the line offsets index. Whole file itself is not loaded into memory.
 
         :param path_to: path to file
         :param line_offsets: Pre-created index of line offsets. If None it will be created automatically
+            or path to file with line offsets on each line for each line in file (starts from 0).
         """
 
         super().__init__(path_to)
@@ -198,7 +199,20 @@ class RandomLineAccessFile(BaseRandomLineAccessFile[str]):
         self._lines = line_offsets
         if line_offsets is None:
             self._index_file()
+        elif isinstance(line_offsets, str):
+            self._lines = self.read_index_from_file(line_offsets)
         self._opened_in_process_with_id = None
+
+    @staticmethod
+    def read_index_from_file(path_to: str):
+        """
+        Reads line offsets from file.
+
+        :param path_to: path to file with line offsets
+        :return: list of line offsets
+        """
+        with open(path_to, "r") as f:
+            return [int(line) for line in f]
 
     def _index_file(self):
         """
@@ -265,7 +279,7 @@ class RandomLineAccessFile(BaseRandomLineAccessFile[str]):
 
 
 class MemoryMappedRandomLineAccessFile(RandomLineAccessFile):
-    def __init__(self, path_to: str, line_offsets: Optional[Sequence[int]] = None):
+    def __init__(self, path_to: str, line_offsets: Optional[Union[Sequence[int], str]] = None):
         super().__init__(path_to, line_offsets)
         self.mm = None
 

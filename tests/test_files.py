@@ -124,6 +124,11 @@ class TestRandomLineAccessFileFromKnownIndex(TestRandomLineAccessFile):
         self.lines_file = RandomLineAccessFile(file_with_line_numbers, lines_offsets)
 
 
+class TestRandomLineAccessFileFromIndexFile(TestRandomLineAccessFile):
+    def setUp(self) -> None:
+        self.lines_file = RandomLineAccessFile(file_with_line_numbers, file_with_line_numbers+".index")
+
+
 class TestMemoryMappedRandomLineAccessFile(TestRandomLineAccessFile):
 
     def setUp(self) -> None:
