@@ -7,6 +7,7 @@ This module contains classes that are used to store data in parallel processes.
 :author:     Martin Dočekal
 """
 import multiprocessing
+import os
 from abc import abstractmethod
 from multiprocessing import Manager
 from typing import Generic, TypeVar, Optional, List, Tuple, Generator
@@ -90,7 +91,6 @@ class TextFileStorage(Storage[str]):
         self._stored_cnt = multiprocessing.Value('i', 0)
 
         self._storage_lock = multiprocessing.RLock()
-        self._file_paths_lock = multiprocessing.RLock()
 
         self._opened_files_for_reading = []
         self.reader_only = reader_only
@@ -117,7 +117,7 @@ class TextFileStorage(Storage[str]):
             return
 
         if self._process_identifier is None:
-            with self._file_paths_lock:
+            with self._storage_lock:
                 self._process_identifier = len(self._file_paths)
                 path = self._path + "/" + self._file_prefix + "_" + str(self._process_identifier)
                 self._file_paths.append(path)
@@ -131,10 +131,29 @@ class TextFileStorage(Storage[str]):
         """
         if self._file is not None:
             self._file.close()
+            self._file = None
 
         for f in self._opened_files_for_reading:
             if f is not None:
                 f.close()
+
+        self._opened_files_for_reading = []
+
+    def flush(self):
+        """
+        Removes all files that are used by this storage and resets it to initial state.
+
+        Make sure that you have closed this storage (in all processes) before calling this method.
+        """
+        with self._storage_lock:
+            for f in self._file_paths:
+                if f is not None:
+                    os.remove(f)
+
+            self._file_paths[:] = []
+            self._index[:] = []
+            self._stored_cnt.value = 0
+            self._waiting_for.value = 0
 
     def is_contiguous(self) -> bool:
         """

@@ -47,8 +47,14 @@ class TestTextFileStorage(TestCase):
                 pass
 
         self.assertTrue(storage.is_contiguous())
-        self.assertEqual(len(storage), 10_000)
+        self.assertEqual(10_000, len(storage))
         storage.reader_only = True
         with storage:
             for i in range(10_000):
                 self.assertEqual(storage[i], str(i))
+
+        storage.flush()
+        self.assertFalse(os.path.isfile(os.path.join(TMP_DIR, "storage_0")))
+        self.assertEqual(0, len(storage))
+
+
