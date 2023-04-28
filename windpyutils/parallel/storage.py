@@ -210,7 +210,7 @@ class TextFileStorage(Storage[str]):
                 raise ValueError("Data with given identifier is already stored.")
 
             self._index[global_identifier] = (self._process_identifier, self._file.tell())
-            print(data, file=self._file, flush=True)
+
             self._stored_cnt.value += 1
 
             # check if we can update _waiting_for
@@ -218,6 +218,8 @@ class TextFileStorage(Storage[str]):
                 self._waiting_for.value += 1
                 while self._waiting_for.value < len(self) and self._index[self._waiting_for.value] is not None:
                     self._waiting_for.value += 1
+
+        print(data, file=self._file, flush=True)
 
     def __getitem__(self, global_identifier: int) -> str:
         """
@@ -238,11 +240,11 @@ class TextFileStorage(Storage[str]):
 
             process_identifier, offset = index
 
-            if not self._is_file_open_for_read(process_identifier):
-                self._open_file_for_read(process_identifier)
+        if not self._is_file_open_for_read(process_identifier):
+            self._open_file_for_read(process_identifier)
 
-            self._opened_files_for_reading[process_identifier].seek(offset)
-            return self._opened_files_for_reading[process_identifier].readline().rstrip("\n").rstrip("\r")
+        self._opened_files_for_reading[process_identifier].seek(offset)
+        return self._opened_files_for_reading[process_identifier].readline().rstrip("\n").rstrip("\r")
 
     def __len__(self) -> int:
         """
