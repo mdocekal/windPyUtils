@@ -210,7 +210,7 @@ class TextFileStorage(Storage[str]):
                 raise ValueError("Data with given identifier is already stored.")
 
             self._index[global_identifier] = (self._process_identifier, self._file.tell())
-            print(data, file=self._file)
+            print(data, file=self._file, flush=True)
             self._stored_cnt.value += 1
 
             # check if we can update _waiting_for
