@@ -102,3 +102,15 @@ class TestDoublyLinkedList(TestCase):
 
         self.list.rotate(False)
         self.assertSequenceEqual([1, 2, 3, 4, 5], list(self.list))
+
+    def test_move_after(self):
+        n = self.list.head
+        self.list.move_after(n, n.next_node)
+        self.assertSequenceEqual([2, 1, 3, 4, 5], list(self.list))
+        self.list.move_after(n, n.next_node)
+        self.assertSequenceEqual([2, 3, 1, 4, 5], list(self.list))
+        self.list.move_after(n, n.next_node)
+        self.assertSequenceEqual([2, 3, 4, 1, 5], list(self.list))
+        self.list.move_after(n, n.next_node)
+        self.assertSequenceEqual([2, 3, 4, 5, 1], list(self.list))
+

@@ -298,3 +298,25 @@ class DoublyLinkedList(Iterable[_T]):
             self.tail.next_node = None
             self.head = self.head.prev_node
             self.head.prev_node = None
+
+    def move_after(self, node: DoublyLinkedListNode[_T], after: DoublyLinkedListNode[_T]):
+        """
+        Moves a node after another node.
+
+        :param node: node to be inserted
+        :param after: node after this node will be inserted
+        """
+
+        if node == after:
+            return
+
+        self.remove(node)
+
+        if after.next_node is None:
+            self.tail = node
+        else:
+            after.next_node.prev_node = node
+
+        node.next_node = after.next_node
+        node.prev_node = after
+        after.next_node = node
