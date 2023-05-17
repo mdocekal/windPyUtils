@@ -179,6 +179,20 @@ class TestFunctorPool(unittest.TestCase):
         else:
             self.skipTest("This test can only be run on the multi cpu device.")
 
+    def test_imap_unordered(self):
+        if os.cpu_count() > 1:
+            data = [i for i in range(10000)]
+            with FunctorPool(self.workers, self.context) as pool:
+                results = list(pool.imap(data))
+
+            self.assertListEqual([i * 2 for i in data], sorted(results))
+
+            for w in self.workers:
+                self.assertTrue(w.begin_called.is_set())
+                self.assertTrue(w.end_called.is_set())
+        else:
+            self.skipTest("This test can only be run on the multi cpu device.")
+
     def test_imap_large_data(self):
         if os.cpu_count() > 1:
             self.workers = [self._large_worker_class() for _ in range(2)]
@@ -186,6 +200,21 @@ class TestFunctorPool(unittest.TestCase):
             
             with FunctorPool(self.workers, self.context) as pool:
                 results = list(x[-1] for x in pool.imap(data))
+                self.assertListEqual([i * 2 for i in data], results)
+
+            for w in self.workers:
+                self.assertTrue(w.begin_called.is_set())
+                self.assertTrue(w.end_called.is_set())
+        else:
+            self.skipTest("This test can only be run on the multi cpu device.")
+
+    def test_imap_unordered_large_data(self):
+        if os.cpu_count() > 1:
+            self.workers = [self._large_worker_class() for _ in range(2)]
+            data = [i for i in range(10000)]
+
+            with FunctorPool(self.workers, self.context) as pool:
+                results = sorted(x[-1] for x in pool.imap(data))
                 self.assertListEqual([i * 2 for i in data], results)
 
             for w in self.workers:

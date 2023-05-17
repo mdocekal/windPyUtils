@@ -310,6 +310,25 @@ class FunctorPool:
                 elif not send_thread.run_event.is_set():
                     send_thread.run_event.set()
 
+    def imap_unordered(self, data: Iterable[T], chunk_size: int = 1) -> Generator[R, None, None]:
+        """
+        Applies functors on each element in iterable.
+        does not honors the order
+
+        :param data: iterable of data that should be passed to functor
+        :param chunk_size: size of a chunk that is sent to a process
+        :return: generator of results
+        """
+        finished_cnt = 0
+
+        with self.SendWorkThread(self, data, chunk_size):
+            while self._sending_work or finished_cnt < self._data_cnt:
+                res_i, res_chunk = self._results_queue.get()
+
+                finished_cnt += 1
+                for x in res_chunk:
+                    yield x
+
 
 class FunctorWorkerFactory(ABC):
     """
@@ -420,3 +439,16 @@ class FactoryFunctorPool(FunctorPool):
 
         with self.ReplaceWorkerThread(self, self.verbose):
             yield from super().imap(data, chunk_size)
+
+    def imap_unordered(self, data: Iterable[T], chunk_size: int = 1) -> Generator[R, None, None]:
+        """
+        Applies functors on each element in iterable.
+        does not honors the order
+
+        :param data: iterable of data that should be passed to functor
+        :param chunk_size: size of a chunk that is sent to a process
+        :return: generator of results
+        """
+
+        with self.ReplaceWorkerThread(self, self.verbose):
+            yield from super().imap_unordered(data, chunk_size)
