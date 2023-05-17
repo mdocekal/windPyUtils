@@ -144,6 +144,8 @@ class CMThread(Thread):
     def __init__(self):
         super().__init__()
         self.stop_event = threading.Event()
+        self.run_event = threading.Event()
+        self.run_event.set()
 
     def stop(self):
         self.stop_event.set()
@@ -197,6 +199,7 @@ class FunctorPool:
                 self.pool._data_cnt += 1
                 if self.stop_event.is_set():
                     break
+                self.run_event.wait()
 
             self.pool._sending_work = False
 
@@ -229,6 +232,7 @@ class FunctorPool:
         if isinstance(results_queue_maxsize, float):
             results_queue_maxsize = int(len(workers) * results_queue_maxsize)
 
+        self._results_queue_maxsize = math.inf if results_queue_maxsize is None else results_queue_maxsize
         self._wid_counter = 0
         self._work_queue = context.Queue() if work_queue_maxsize is None else context.Queue(work_queue_maxsize)
         self._results_queue = context.Queue() if results_queue_maxsize is None else context.Queue(results_queue_maxsize)
@@ -292,13 +296,19 @@ class FunctorPool:
         buffer = Buffer()
         finished_cnt = 0
 
-        with self.SendWorkThread(self, data, chunk_size):
+        with self.SendWorkThread(self, data, chunk_size) as send_thread:
             while self._sending_work or finished_cnt < self._data_cnt:
                 res_i, res_chunk = self._results_queue.get()
                 for ch in buffer(res_i, res_chunk):
                     finished_cnt += 1
                     for x in ch:
                         yield x
+
+                # if buffer is full, stop sending work
+                if len(buffer) >= self._results_queue_maxsize:
+                    send_thread.run_event.clear()
+                elif not send_thread.run_event.is_set():
+                    send_thread.run_event.set()
 
 
 class FunctorWorkerFactory(ABC):

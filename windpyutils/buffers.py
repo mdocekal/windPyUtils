@@ -41,6 +41,12 @@ class Buffer:
         """
         return self._waiting_for
 
+    def __len__(self) -> int:
+        """
+        Number of items in buffer.
+        """
+        return len(self._storage)
+
     def __call__(self, i: int, x: Any) -> "Buffer":
         """
         Adds new item into buffer.
