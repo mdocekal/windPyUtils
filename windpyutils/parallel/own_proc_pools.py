@@ -7,6 +7,7 @@ This module contains multiprocessing pool that allows to use own process classes
 """
 import math
 import multiprocessing
+import queue
 import sys
 import threading
 from abc import abstractmethod, ABC
@@ -14,7 +15,7 @@ from multiprocessing import Process
 from multiprocessing.context import BaseContext
 from multiprocessing.process import BaseProcess
 from threading import Thread
-from typing import TypeVar, Iterable, Generator, List, Generic, Optional, Union
+from typing import TypeVar, Iterable, Generator, List, Generic, Optional, Union, Tuple
 
 from windpyutils.buffers import Buffer
 
@@ -53,6 +54,7 @@ class BaseFunctorWorker(BaseProcess, Generic[T, R]):
         self.wid = None
         self.work_queue = None
         self.results_queue = None
+        self.results_queue_lock = None
         self.replace_queue = None
         self.begin_finished = context.Event()
         self.max_chunks_per_worker = max_chunks_per_worker
@@ -96,7 +98,14 @@ class BaseFunctorWorker(BaseProcess, Generic[T, R]):
                     break
 
                 i, data_list = q_item
-                self.results_queue.put((i, [self(x) for x in data_list]))
+
+                res = (i, [self(x) for x in data_list])
+                try:
+                    with self.results_queue_lock:
+                        self.results_queue.put(res, block=False)
+                except queue.Full:
+                    self.results_queue.put(res)
+
                 self.max_chunks_per_worker -= 1
             else:
                 self.results_queue.close()
@@ -236,6 +245,7 @@ class FunctorPool:
         self._wid_counter = 0
         self._work_queue = context.Queue() if work_queue_maxsize is None else context.Queue(work_queue_maxsize)
         self._results_queue = context.Queue() if results_queue_maxsize is None else context.Queue(results_queue_maxsize)
+        self._results_queue_lock = context.Lock()
         self.procs = workers
 
         self._sending_work = False
@@ -260,6 +270,8 @@ class FunctorPool:
             p.work_queue = self._work_queue
         if p.results_queue is None:
             p.results_queue = self._results_queue
+        if p.results_queue_lock is None:
+            p.results_queue_lock = self._results_queue_lock
 
     def __enter__(self) -> "FunctorPool":
         for p in self.procs:
@@ -283,6 +295,32 @@ class FunctorPool:
         for p in self.procs:
             p.begin_finished.wait()
 
+    def _get_results(self) -> Tuple[List[int], List[R]]:
+        """
+        Gets all results from results queue if there are no results it will wait until there are some.
+
+        :return: tuple of list of indexes and list of results
+        """
+
+        if self._results_queue.qsize() > 0:
+            chunks = []
+            indexes = []
+
+            with self._results_queue_lock:
+                try:
+                    while self._results_queue.qsize() > 0:
+                        res_i, res_chunk = self._results_queue.get(block=False)
+                        chunks.append(res_chunk)
+                        indexes.append(res_i)
+                except queue.Empty:
+                    ...
+
+            if len(chunks) > 0:
+                return indexes, chunks
+
+        res_i, res_chunk = self._results_queue.get()
+        return [res_i], [res_chunk]
+
     def imap(self, data: Iterable[T], chunk_size: int = 1) -> Generator[R, None, None]:
         """
         Applies functors on each element in iterable.
@@ -298,11 +336,12 @@ class FunctorPool:
 
         with self.SendWorkThread(self, data, chunk_size) as send_thread:
             while self._sending_work or finished_cnt < self._data_cnt:
-                res_i, res_chunk = self._results_queue.get()
-                for ch in buffer(res_i, res_chunk):
-                    finished_cnt += 1
-                    for x in ch:
-                        yield x
+                indices, chunks = self._get_results()
+                for res_i, res_chunk in zip(indices, chunks):
+                    for ch in buffer(res_i, res_chunk):
+                        finished_cnt += 1
+                        for x in ch:
+                            yield x
 
                 # if buffer is full, stop sending work
                 if len(buffer) >= self._results_queue_maxsize:
@@ -323,11 +362,12 @@ class FunctorPool:
 
         with self.SendWorkThread(self, data, chunk_size):
             while self._sending_work or finished_cnt < self._data_cnt:
-                res_i, res_chunk = self._results_queue.get()
 
-                finished_cnt += 1
-                for x in res_chunk:
-                    yield x
+                indices, chunks = self._get_results()
+                for res_i, res_chunk in zip(indices, chunks):
+                    finished_cnt += 1
+                    for x in res_chunk:
+                        yield x
 
 
 class FunctorWorkerFactory(ABC):

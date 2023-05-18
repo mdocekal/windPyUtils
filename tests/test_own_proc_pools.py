@@ -183,7 +183,7 @@ class TestFunctorPool(unittest.TestCase):
         if os.cpu_count() > 1:
             data = [i for i in range(10000)]
             with FunctorPool(self.workers, self.context) as pool:
-                results = list(pool.imap(data))
+                results = list(pool.imap_unordered(data))
 
             self.assertListEqual([i * 2 for i in data], sorted(results))
 
@@ -214,7 +214,7 @@ class TestFunctorPool(unittest.TestCase):
             data = [i for i in range(10000)]
 
             with FunctorPool(self.workers, self.context) as pool:
-                results = sorted(x[-1] for x in pool.imap(data))
+                results = sorted(x[-1] for x in pool.imap_unordered(data))
                 self.assertListEqual([i * 2 for i in data], results)
 
             for w in self.workers:
