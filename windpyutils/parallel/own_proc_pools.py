@@ -108,8 +108,6 @@ class BaseFunctorWorker(BaseProcess, Generic[T, R]):
 
                 self.max_chunks_per_worker -= 1
             else:
-                self.results_queue.close()
-                self.results_queue.join_thread()
                 if self.replace_queue is not None:
                     self.replace_queue.put(self.wid)
 
@@ -243,8 +241,9 @@ class FunctorPool:
 
         self._results_queue_maxsize = math.inf if results_queue_maxsize is None else results_queue_maxsize
         self._wid_counter = 0
-        self._work_queue = context.Queue() if work_queue_maxsize is None else context.Queue(work_queue_maxsize)
-        self._results_queue = context.Queue() if results_queue_maxsize is None else context.Queue(results_queue_maxsize)
+        self._manager = context.Manager()
+        self._work_queue = self._manager.Queue() if work_queue_maxsize is None else self._manager.Queue(work_queue_maxsize)
+        self._results_queue = self._manager.Queue() if results_queue_maxsize is None else self._manager.Queue(results_queue_maxsize)
         self._results_queue_lock = context.Lock()
         self.procs = workers
 
@@ -274,6 +273,7 @@ class FunctorPool:
             p.results_queue_lock = self._results_queue_lock
 
     def __enter__(self) -> "FunctorPool":
+        self._manager.__enter__()
         for p in self.procs:
             p.start()
         return self
@@ -286,6 +286,8 @@ class FunctorPool:
                 p.join(timeout=self.join_timeout)
                 if p.exitcode is None and self.verbose:
                     print(f"Process with wid {p.wid} was not joined and is still running.", file=sys.stderr)
+
+        self._manager.__exit__(exc_type, exc_val, exc_tb)
 
     def until_all_ready(self):
         """

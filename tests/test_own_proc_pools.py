@@ -156,8 +156,8 @@ class TestFunctorPool(unittest.TestCase):
             with FunctorPool(self.workers, self.context) as pool:
                 for i, w in enumerate(self.workers):
                     self.assertEqual(i, w.wid)
-                    self.assertTrue(isinstance(w.work_queue, Queue))
-                    self.assertTrue(isinstance(w.results_queue, Queue))
+                    self.assertIsNotNone(w.work_queue)
+                    self.assertIsNotNone(w.results_queue)
 
             for w in self.workers:
                 self.assertTrue(w.begin_called.is_set())
@@ -303,9 +303,9 @@ class TestFactoryFunctorPool(unittest.TestCase):
                 self.assertEqual(2, len(self.factory.created_workers))
                 for i, w in enumerate(self.factory.created_workers):
                     self.assertEqual(i, w.wid)
-                    self.assertTrue(isinstance(w.work_queue, Queue))
-                    self.assertTrue(isinstance(w.results_queue, Queue))
-                    self.assertTrue(isinstance(w.replace_queue, Queue))
+                    self.assertIsNotNone(w.work_queue)
+                    self.assertIsNotNone(w.results_queue)
+                    self.assertIsNotNone(w.replace_queue)
 
             for w in self.factory.created_workers:
                 self.assertTrue(w.begin_called.is_set())
