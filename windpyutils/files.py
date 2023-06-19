@@ -251,7 +251,7 @@ class RandomLineAccessFile(BaseRandomLineAccessFile[str]):
             self.file = None
             self._opened_in_process_with_id = None
 
-    def _reopen_if_needed(self):
+    def reopen_if_needed(self):
         """
         Reopens itself if the multiprocessing is activated and this dataset was opened in parent process.
         """
@@ -266,7 +266,7 @@ class RandomLineAccessFile(BaseRandomLineAccessFile[str]):
         return self.file is None
 
     def _file_seek(self, offset: int):
-        self._reopen_if_needed()
+        self.reopen_if_needed()
         self.file.seek(offset)
 
     def _read_line(self, n: int) -> str:
@@ -274,7 +274,7 @@ class RandomLineAccessFile(BaseRandomLineAccessFile[str]):
         return self._read_next_line()
 
     def _read_next_line(self) -> str:
-        self._reopen_if_needed()
+        self.reopen_if_needed()
         return self.file.readline().rstrip("\n")
 
 
@@ -299,7 +299,7 @@ class MemoryMappedRandomLineAccessFile(RandomLineAccessFile):
             self._opened_in_process_with_id = None
 
     def _file_seek(self, offset: int):
-        self._reopen_if_needed()
+        self.reopen_if_needed()
         self.mm.seek(offset)
 
     def _read_line(self, n: int) -> str:
@@ -307,7 +307,7 @@ class MemoryMappedRandomLineAccessFile(RandomLineAccessFile):
         return self._read_next_line()
 
     def _read_next_line(self) -> str:
-        self._reopen_if_needed()
+        self.reopen_if_needed()
         return self.mm.readline().decode().rstrip("\n")
 
 
@@ -798,7 +798,7 @@ class MapAccessFile:
             self.file = None
             self._opened_in_process_with_id = None
 
-    def _reopen_if_needed(self):
+    def reopen_if_needed(self):
         """
         Reopens itself if the multiprocessing is activated and this dataset was opened in parent process.
         """
@@ -818,7 +818,7 @@ class MapAccessFile:
         """
         if self.file is None:
             raise RuntimeError("Firstly open the file.")
-        self._reopen_if_needed()
+        self.reopen_if_needed()
         self.file.seek(self.mapping[k])
         return self.file.readline()
 
