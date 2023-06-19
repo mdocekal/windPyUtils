@@ -7,7 +7,10 @@ Implementation of sorted data structures.
 """
 import bisect
 from abc import abstractmethod
-from typing import MutableSet, Iterator, Generic, TypeVar, Iterable, Any, Optional, Tuple, Protocol
+from typing import MutableSet, Iterator, Generic, TypeVar, Iterable, Any, Optional, Tuple, Protocol, Mapping, \
+    MutableMapping
+
+from windpyutils.generic import arg_sort
 
 
 class Comparable(Protocol):
@@ -15,7 +18,80 @@ class Comparable(Protocol):
     def __lt__(self, other: Any) -> bool: ...
 
 
+K = TypeVar("K", bound=Comparable)
 T = TypeVar("T", bound=Comparable)
+
+
+class SortedMap(MutableMapping[K, T], Generic[K, T]):
+    """
+    Behaves like ordinary map but the keys in it are sorted (not according to set history).
+    Also, it is more memory efficient as it uses lists to store keys and values. Might be slower than ordinary map.
+    """
+
+    def __init__(self, init_values: Optional[Mapping[K, T]] = None):
+        """
+        :param init_values: voluntary initial values for the map.
+        """
+        self._keys = []
+        self._values = []
+
+        if init_values is not None:
+            self._keys = list(init_values.keys())
+            # sort keys
+            sorted_indices = arg_sort(self._keys)
+            values = list(init_values.values())
+            self._keys = [self._keys[i] for i in sorted_indices]
+            self._values = [values[i] for i in sorted_indices]
+
+    def __getitem__(self, key: K) -> T:
+        insert_index, already_in = self.insertions_index(key)
+        if not already_in:
+            raise KeyError(f"Key {key} is not in the map.")
+
+        return self._values[insert_index]
+
+    def __setitem__(self, key: K, value: T) -> None:
+        if not (isinstance(key, float) or isinstance(key, int)) or key != key:
+            raise TypeError("Is not a valid key.")
+
+        insert_index, already_in = self.insertions_index(key)
+        if already_in:
+            self._values[insert_index] = value
+        else:
+            self._keys.insert(insert_index, key)
+            self._values.insert(insert_index, value)
+
+    def __delitem__(self, key: K) -> None:
+        insert_index, already_in = self.insertions_index(key)
+        if not already_in:
+            raise KeyError(f"Key {key} is not in the map.")
+
+        del self._keys[insert_index]
+        del self._values[insert_index]
+
+    def __iter__(self) -> Iterator[K]:
+        return iter(self._keys)
+
+    def __len__(self) -> int:
+        return len(self._keys)
+
+    def insertions_index(self, x: T) -> Tuple[int, bool]:
+        """
+        Returns insertions index for given value that remains the value sorted and flag that signalizes whether the
+        value is already in.
+
+        :param x: value for which the insertion point should be found
+        :return: insertion index and already in flag
+        """
+        searched_i = bisect.bisect_left(self._keys, x)
+        try:
+            on_index = self._keys[searched_i]
+            if on_index == x:
+                return searched_i, True
+        except IndexError:
+            pass
+
+        return searched_i, False
 
 
 class SortedSet(MutableSet, Generic[T]):
