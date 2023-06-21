@@ -29,9 +29,8 @@ class TestSortedMap(TestCase):
         self.assertTrue(9 in self.filled)
         self.assertFalse(99 in self.filled)
         self.assertFalse(10 in self.empty)
-
-        with self.assertRaises(TypeError):
-            self.assertFalse(None in self.filled)
+        self.assertFalse(None in self.empty)
+        self.assertFalse(None in self.filled)
 
     def test_getitem(self):
         self.assertEqual("a", self.filled[10])
@@ -42,7 +41,7 @@ class TestSortedMap(TestCase):
             self.filled[99]
         with self.assertRaises(KeyError):
             self.empty[10]
-        with self.assertRaises(TypeError):
+        with self.assertRaises(KeyError):
             self.filled[None]
 
     def test_setitem(self):
