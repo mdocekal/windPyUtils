@@ -117,25 +117,25 @@ class SortedSet(MutableSet, Generic[T]):
 
         :param init_values: this values will be used for initialization
         """
-        self._values = []
+        self.values = []
 
         if init_values is not None:
             sorted_vals = sorted(init_values)
             # check uniqueness
-            self._values.append(sorted_vals[0])
+            self.values.append(sorted_vals[0])
             for i in range(1, len(sorted_vals)):
                 if sorted_vals[i] != sorted_vals[i - 1]:
-                    self._values.append(sorted_vals[i])
+                    self.values.append(sorted_vals[i])
 
     def add(self, value: T) -> None:
         insert_index, already_in = self.insertions_index(value)
         if not already_in:
-            self._values.insert(insert_index, value)
+            self.values.insert(insert_index, value)
 
     def discard(self, value: T) -> None:
         insert_index, already_in = self.insertions_index(value)
         if already_in:
-            del self._values[insert_index]
+            del self.values[insert_index]
 
     def __contains__(self, x: T) -> bool:
         # search the smallest interval ends that is greater or equal to x
@@ -153,9 +153,9 @@ class SortedSet(MutableSet, Generic[T]):
         :param x: value for which the insertion point should be found
         :return: insertion index and already in flag
         """
-        searched_i = bisect.bisect_left(self._values, x)
+        searched_i = bisect.bisect_left(self.values, x)
         try:
-            on_index = self._values[searched_i]
+            on_index = self.values[searched_i]
             if on_index == x:
                 return searched_i, True
         except IndexError:
@@ -164,7 +164,7 @@ class SortedSet(MutableSet, Generic[T]):
         return searched_i, False
 
     def __len__(self) -> int:
-        return len(self._values)
+        return len(self.values)
 
     def __iter__(self) -> Iterator[T]:
-        yield from iter(self._values)
+        yield from iter(self.values)
